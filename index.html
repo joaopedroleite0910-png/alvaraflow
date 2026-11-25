@@ -1302,7 +1302,8 @@ function renderDetail(id) {
   // Timeline
   const tlColors = {ok:'tl-ok',info:'tl-info',warn:'tl-warn',rej:'tl-rej'};
   const tlIcons  = {ok:'✓',info:'i',warn:'!',rej:'✕'};
-  document.getElementById('d-timeline').innerHTML = a.historico.map(h => `
+  const historico = a.historico || [{tipo:'info', ev:'Processo protocolado', data: a.data || '—', ator: a.responsavel || 'Sistema'}];
+  document.getElementById('d-timeline').innerHTML = historico.map(h => `
     <div class="tl-item">
       <div class="tl-dot ${tlColors[h.tipo]||'tl-info'}">${tlIcons[h.tipo]||'•'}</div>
       <div class="tl-body">
