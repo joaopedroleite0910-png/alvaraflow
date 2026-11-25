@@ -1735,27 +1735,33 @@ async function loadAlvaras() {
         .select('*')
         .order('created_at', { ascending: false });
       if (!error && data) {
-        ALVARAS.length = 0;
-        data.forEach(row => ALVARAS.push({
-          id: row.id,
-          protocolo: row.protocolo,
-          tipo: row.tipo,
-          requerente: row.requerente,
-          cnpj: row.cnpj,
-          responsavel: row.responsavel,
-          email: row.email,
-          telefone: row.telefone,
-          endereco: row.endereco,
-          observacoes: row.observacoes,
-          status: row.status,
-          data: row.data,
-          createdAt: row.created_at
-        }));
-        return;
+        if (data.length > 0) {
+          // Banco tem dados — usa o banco
+          ALVARAS.length = 0;
+          data.forEach(row => ALVARAS.push({
+            id: row.id, protocolo: row.protocolo, tipo: row.tipo,
+            requerente: row.requerente, cnpj: row.cnpj, responsavel: row.responsavel,
+            email: row.email, telefone: row.telefone, endereco: row.endereco,
+            observacoes: row.observacoes, status: row.status,
+            data: row.data, createdAt: row.created_at
+          }));
+          return;
+        }
+        // Banco vazio — tenta migrar do localStorage
+        const local = JSON.parse(localStorage.getItem(alvarasKey()) || '[]');
+        if (local.length > 0) {
+          ALVARAS.length = 0;
+          local.forEach(a => ALVARAS.push(a));
+          // Migra cada registro para o Supabase
+          for (const a of local) {
+            await saveAlvara(a).catch(() => {});
+          }
+          return;
+        }
       }
     } catch {}
   }
-  // Fallback localStorage
+  // Fallback localStorage puro (sem Supabase)
   try {
     const saved = JSON.parse(localStorage.getItem(alvarasKey()) || '[]');
     ALVARAS.length = 0;
