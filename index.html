@@ -1531,17 +1531,24 @@ function exportDocsReport() {
    TIPOS VIEW
    ================================================================ */
 function renderTipos() {
-  document.getElementById('tipos-grid').innerHTML = TIPOS.map(t => `
+  document.getElementById('tipos-grid').innerHTML = TIPOS.map(t => {
+    const allDocs = t.grupos
+      ? t.grupos.flatMap(g => g.docs)
+      : (t.docs || []);
+    const preview = allDocs.slice(0, 4);
+    return `
     <div class="tipo-card">
       <div class="tipo-ic" style="background:${t.corBg}">${t.ic}</div>
       <div class="tipo-name">Alvará de ${t.key}</div>
       <div class="tipo-desc">${t.desc}</div>
-      <div class="tipo-docs">${t.docs.length} documentos obrigatórios</div>
+      ${t.lei ? `<div style="font-size:11px;color:var(--subtle);margin:6px 0 2px;font-style:italic">⚖️ ${t.lei}</div>` : ''}
+      <div class="tipo-docs">${allDocs.length} documentos obrigatórios</div>
       <div style="margin-top:12px;display:flex;flex-direction:column;gap:4px">
-        ${t.docs.map(d => `<div style="font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px"><span style="color:${t.cor}">•</span>${d}</div>`).join('')}
+        ${preview.map(d => `<div style="font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px"><span style="color:${t.cor}">•</span>${d}</div>`).join('')}
+        ${allDocs.length > 4 ? `<div style="font-size:12px;color:var(--subtle)">+${allDocs.length - 4} mais...</div>` : ''}
       </div>
-    </div>
-  `).join('');
+    </div>`;
+  }).join('');
 }
 
 /* ================================================================
