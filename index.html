@@ -2150,23 +2150,32 @@ async function doLogout() {
     return;
   }
 
-  // Verificar sessão existente
-  const { data: { session } } = await supabase.auth.getSession();
-  if (session?.user) {
-    onAuthSuccess(session.user);
-  } else {
-    // Mostrar modal de login
-    document.getElementById('modal-login').hidden = false;
-    renderDashboard(); // renderiza o dashboard em background
-  }
+  let sessionHandled = false;
 
-  // Listener de mudança de auth
-  supabase.auth.onAuthStateChange((_event, session) => {
+  // Listener de mudança de auth (cobre login, logout e restauração de sessão)
+  supabase.auth.onAuthStateChange(async (_event, session) => {
     if (session?.user) {
-      onAuthSuccess(session.user);
+      if (!sessionHandled || _event === 'SIGNED_IN') {
+        sessionHandled = true;
+        await onAuthSuccess(session.user);
+      }
     } else {
+      sessionHandled = false;
+      currentUser = null;
+      ALVARAS.length = 0;
       document.getElementById('modal-login').hidden = false;
+      renderDashboard();
     }
   });
+
+  // Verificar sessão existente
+  const { data: { session } } = await supabase.auth.getSession();
+  if (session?.user && !sessionHandled) {
+    sessionHandled = true;
+    await onAuthSuccess(session.user);
+  } else if (!session) {
+    document.getElementById('modal-login').hidden = false;
+    renderDashboard();
+  }
 })();
 </script>
