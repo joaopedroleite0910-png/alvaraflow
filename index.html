@@ -1675,16 +1675,87 @@ function closeModalNovo(e) {
   }
 }
 
+function alvarasKey() {
+  return `alvaraflow_alvaras_${currentUser?.id || 'guest'}`;
+}
+
+function loadAlvaras() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(alvarasKey()) || '[]');
+    ALVARAS.length = 0;
+    saved.forEach(a => ALVARAS.push(a));
+  } catch {}
+}
+
+function saveAlvaras() {
+  try { localStorage.setItem(alvarasKey(), JSON.stringify(ALVARAS)); } catch {}
+}
+
 function novoNext() {
-  if (novoStep < 3) {
-    novoStep++;
-    updateNovoSteps();
+  if (novoStep === 1) {
+    const tipo = document.getElementById('novo-tipo').value;
+    if (!tipo) { alert('Selecione o tipo de alvará.'); return; }
+    novoStep++; updateNovoSteps();
+  } else if (novoStep === 2) {
+    const nome = document.getElementById('novo-nome').value.trim();
+    if (!nome) { alert('Informe o nome do requerente.'); return; }
+    novoStep++; updateNovoSteps();
   } else {
-    // Submit
+    // Step 3 — salvar
+    const prot  = document.getElementById('novo-prot').value;
+    const tipo  = document.getElementById('novo-tipo').value;
+    const nome  = document.getElementById('novo-nome').value.trim();
+    const cnpj  = document.getElementById('novo-cnpj').value.trim();
+    const resp  = document.getElementById('novo-resp').value.trim();
+    const email = document.getElementById('novo-email').value.trim();
+    const tel   = document.getElementById('novo-tel').value.trim();
+    const end   = document.getElementById('novo-end').value.trim();
+    const num   = document.getElementById('novo-num').value.trim();
+    const comp  = document.getElementById('novo-comp').value.trim();
+    const bairro= document.getElementById('novo-bairro').value.trim();
+    const cep   = document.getElementById('novo-cep').value.trim();
+    const obs   = document.getElementById('novo-obs').value.trim();
+
+    const id = 'ALV-' + Date.now();
+    const endereco = [end, num, comp, bairro, cep].filter(Boolean).join(', ');
+
+    ALVARAS.unshift({
+      id, protocolo: prot, tipo, requerente: nome,
+      cnpj, responsavel: resp, email, telefone: tel,
+      endereco, observacoes: obs,
+      status: 'pendente',
+      data: new Date().toLocaleDateString('pt-BR'),
+      createdAt: new Date().toISOString()
+    });
+    saveAlvaras();
+
     document.getElementById('modal-novo').hidden = true;
     novoStep = 1;
-    // Optionally show a toast
+
+    // Atualiza a view atual
+    const v = document.querySelector('[data-view]')?.dataset.view || 'dashboard';
+    if (v === 'alvaras' || v === 'dashboard') {
+      if (v === 'alvaras') renderAlvaras();
+      else renderDashboard();
+    }
+    renderDashboard();
+    if (document.getElementById('view-alvaras') && !document.getElementById('view-alvaras').hidden) renderAlvaras();
+    showToast('✅ Alvará ' + prot + ' protocolado com sucesso!');
   }
+}
+
+function showToast(msg) {
+  let t = document.getElementById('toast');
+  if (!t) {
+    t = document.createElement('div');
+    t.id = 'toast';
+    t.style.cssText = 'position:fixed;bottom:24px;right:24px;background:var(--s-ok-bg);color:var(--s-ok);border:1px solid var(--s-ok);padding:12px 20px;border-radius:10px;font-size:13px;font-weight:600;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,.12);transition:opacity .3s';
+    document.body.appendChild(t);
+  }
+  t.textContent = msg;
+  t.style.opacity = '1';
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => { t.style.opacity = '0'; }, 3000);
 }
 
 function novoBack() {
@@ -1859,6 +1930,7 @@ function onAuthSuccess(user) {
   currentUser = user;
   document.getElementById('modal-login').hidden = true;
   updateUserUI(user);
+  loadAlvaras();
   renderDashboard();
 }
 
