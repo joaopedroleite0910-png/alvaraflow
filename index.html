@@ -1525,7 +1525,6 @@ async function doSignup() {
   });
   setLoading('btn-signup', false);
   if (error) {
-    // Traduz erros comuns do Supabase
     const msgs = {
       'User already registered': 'Este e-mail já está cadastrado. Faça login.',
       'Password should be at least 6 characters': 'A senha deve ter ao menos 6 caracteres.',
@@ -1533,14 +1532,20 @@ async function doSignup() {
     };
     return loginError(msgs[error.message] || error.message);
   }
-  // Se confirmação de e-mail estiver desligada no Supabase, o usuário já está logado
+  // Se já tem sessão (confirmação desligada), entra direto
   if (data.session) {
     onAuthSuccess(data.user);
     return;
   }
-  // Confirmação de e-mail necessária
-  loginSuccess('✉️ Conta criada! Verifique seu e-mail para confirmar o cadastro e depois faça login.');
-  setTimeout(() => showLoginForm(), 3000);
+  // Sem sessão: tenta fazer login automático com as credenciais recém-cadastradas
+  loginSuccess('✅ Conta criada! Entrando...');
+  const { data: loginData, error: loginError2 } = await supabase.auth.signInWithPassword({ email, password: pass });
+  if (loginData?.user) {
+    onAuthSuccess(loginData.user);
+  } else {
+    loginSuccess('✉️ Conta criada! Faça login para continuar.');
+    setTimeout(() => showLoginForm(), 2000);
+  }
 }
 
 async function doReset() {
