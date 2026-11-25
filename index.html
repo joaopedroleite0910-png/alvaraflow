@@ -743,10 +743,11 @@ svg text{font-family:'Inter',sans-serif}
       <div id="dtab-docs" class="dtab-pane">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
           <div style="font-size:13px;color:var(--muted)" id="d-docs-count"></div>
-          <button class="btn btn-secondary btn-sm">
+          <label class="btn btn-secondary btn-sm" style="cursor:pointer">
             <svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z" clip-rule="evenodd"/></svg>
             Enviar documento
-          </button>
+            <input type="file" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" style="display:none" onchange="enviarDocDetalhe(this)">
+          </label>
         </div>
         <div class="prog-bar" id="d-prog-bar"><div class="prog-fill" id="d-prog-fill"></div></div>
         <div class="doc-list" id="d-doc-list"></div>
@@ -1286,8 +1287,11 @@ function renderDetail(id) {
       : d.status==='pending' ? '<span style="color:var(--s-pend)">Aguardando envio</span>'
       : '<span style="color:var(--subtle)">Não enviado</span>';
     const actionBtn = d.arquivo
-      ? `<button class="btn btn-secondary btn-sm" onclick="event.stopPropagation()">Ver</button>`
-      : `<button class="btn btn-primary btn-sm" onclick="event.stopPropagation()">Enviar</button>`;
+      ? `<a href="${d.publicUrl || '#'}" target="_blank" rel="noopener" class="btn btn-secondary btn-sm" onclick="event.stopPropagation()">Ver</a>`
+      : `<label class="btn btn-primary btn-sm" style="cursor:pointer" onclick="event.stopPropagation()">
+           Enviar
+           <input type="file" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" style="display:none" onchange="enviarDocItem('${currentId}','${(d.nome||d.key||'').replace(/'/g,"\\'")}',this)">
+         </label>`;
     return `
     <div class="doc-item">
       <div class="doc-ck ${ckClass}">${ckIcon}</div>
@@ -1681,7 +1685,35 @@ function alvarasKey() {
   return `alvaraflow_alvaras_${currentUser?.id || 'guest'}`;
 }
 
-function loadAlvaras() {
+async function loadAlvaras() {
+  if (supabase && currentUser) {
+    try {
+      const { data, error } = await supabase
+        .from('alvaras')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (!error && data) {
+        ALVARAS.length = 0;
+        data.forEach(row => ALVARAS.push({
+          id: row.id,
+          protocolo: row.protocolo,
+          tipo: row.tipo,
+          requerente: row.requerente,
+          cnpj: row.cnpj,
+          responsavel: row.responsavel,
+          email: row.email,
+          telefone: row.telefone,
+          endereco: row.endereco,
+          observacoes: row.observacoes,
+          status: row.status,
+          data: row.data,
+          createdAt: row.created_at
+        }));
+        return;
+      }
+    } catch {}
+  }
+  // Fallback localStorage
   try {
     const saved = JSON.parse(localStorage.getItem(alvarasKey()) || '[]');
     ALVARAS.length = 0;
@@ -1689,11 +1721,32 @@ function loadAlvaras() {
   } catch {}
 }
 
-function saveAlvaras() {
+async function saveAlvara(alvara) {
+  if (supabase && currentUser) {
+    try {
+      await supabase.from('alvaras').upsert({
+        id: alvara.id,
+        user_id: currentUser.id,
+        protocolo: alvara.protocolo,
+        tipo: alvara.tipo,
+        requerente: alvara.requerente,
+        cnpj: alvara.cnpj,
+        responsavel: alvara.responsavel,
+        email: alvara.email,
+        telefone: alvara.telefone,
+        endereco: alvara.endereco,
+        observacoes: alvara.observacoes,
+        status: alvara.status,
+        data: alvara.data
+      });
+      return;
+    } catch {}
+  }
+  // Fallback localStorage
   try { localStorage.setItem(alvarasKey(), JSON.stringify(ALVARAS)); } catch {}
 }
 
-function novoNext() {
+async function novoNext() {
   if (novoStep === 1) {
     const tipo = document.getElementById('novo-tipo').value;
     if (!tipo) { alert('Selecione o tipo de alvará.'); return; }
@@ -1721,15 +1774,21 @@ function novoNext() {
     const id = 'ALV-' + Date.now();
     const endereco = [end, num, comp, bairro, cep].filter(Boolean).join(', ');
 
-    ALVARAS.unshift({
+    const novoAlvara = {
       id, protocolo: prot, tipo, requerente: nome,
       cnpj, responsavel: resp, email, telefone: tel,
       endereco, observacoes: obs,
       status: 'pendente',
       data: new Date().toLocaleDateString('pt-BR'),
       createdAt: new Date().toISOString()
-    });
-    saveAlvaras();
+    };
+    ALVARAS.unshift(novoAlvara);
+
+    const btn = document.getElementById('btn-novo-next');
+    btn.textContent = 'Salvando…';
+    btn.disabled = true;
+    await saveAlvara(novoAlvara);
+    btn.disabled = false;
 
     document.getElementById('modal-novo').hidden = true;
     novoStep = 1;
@@ -1928,11 +1987,11 @@ async function doReset() {
   loginSuccess('Link de redefinição enviado para ' + email);
 }
 
-function onAuthSuccess(user) {
+async function onAuthSuccess(user) {
   currentUser = user;
   document.getElementById('modal-login').hidden = true;
   updateUserUI(user);
-  loadAlvaras();
+  await loadAlvaras();
   renderDashboard();
 }
 
