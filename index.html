@@ -1503,7 +1503,15 @@ async function doLogin() {
   setLoading('btn-login', true);
   const { data, error } = await supabase.auth.signInWithPassword({ email, password: pass });
   setLoading('btn-login', false);
-  if (error) return loginError(error.message === 'Invalid login credentials' ? 'E-mail ou senha incorretos.' : error.message);
+  if (error) {
+    if (error.message === 'Invalid login credentials') return loginError('E-mail ou senha incorretos.');
+    if (error.message === 'Email not confirmed') {
+      loginError('E-mail ainda não confirmado. Reenviando confirmação...');
+      await supabase.auth.resend({ type: 'signup', email });
+      return loginError('✉️ Confirmação reenviada para ' + email + '. Clique no link e tente novamente.');
+    }
+    return loginError(error.message);
+  }
   onAuthSuccess(data.user);
 }
 
@@ -1532,20 +1540,21 @@ async function doSignup() {
     };
     return loginError(msgs[error.message] || error.message);
   }
-  // Se já tem sessão (confirmação desligada), entra direto
+  // Confirmação desligada: sessão retornada direto
   if (data.session) {
     onAuthSuccess(data.user);
     return;
   }
-  // Sem sessão: tenta fazer login automático com as credenciais recém-cadastradas
+  // Supabase ainda exige confirmação — faz login automático
   loginSuccess('✅ Conta criada! Entrando...');
-  const { data: loginData, error: loginError2 } = await supabase.auth.signInWithPassword({ email, password: pass });
-  if (loginData?.user) {
-    onAuthSuccess(loginData.user);
-  } else {
-    loginSuccess('✉️ Conta criada! Faça login para continuar.');
-    setTimeout(() => showLoginForm(), 2000);
+  const { data: ld, error: le } = await supabase.auth.signInWithPassword({ email, password: pass });
+  if (ld?.user) {
+    onAuthSuccess(ld.user);
+    return;
   }
+  // Usuário precisa confirmar e-mail
+  loginSuccess('✉️ Verifique seu e-mail e clique no link de confirmação para acessar.');
+  setTimeout(() => showLoginForm(), 3000);
 }
 
 async function doReset() {
