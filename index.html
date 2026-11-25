@@ -1272,12 +1272,13 @@ function renderDetail(id) {
   ].map(([l,v]) => `<div class="info-row"><div class="info-lbl">${l}</div><div class="info-val">${v}</div></div>`).join('');
 
   // Documents
-  const total = a.docs.length;
-  const done  = a.docs.filter(d => d.status === 'ok').length;
-  document.getElementById('d-docs-count').textContent = `${done} de ${total} documentos entregues`;
-  document.getElementById('d-prog-fill').style.width = `${(done/total)*100}%`;
+  const alvDocs = a.docs || [];
+  const total = alvDocs.length;
+  const done  = alvDocs.filter(d => d.status === 'ok').length;
+  document.getElementById('d-docs-count').textContent = total ? `${done} de ${total} documentos entregues` : 'Nenhum documento cadastrado';
+  document.getElementById('d-prog-fill').style.width = `${total ? (done/total)*100 : 0}%`;
 
-  document.getElementById('d-doc-list').innerHTML = a.docs.map(d => {
+  document.getElementById('d-doc-list').innerHTML = alvDocs.map(d => {
     const ckClass = {ok:'ck-ok',pending:'ck-pend',missing:'ck-miss'}[d.status];
     const ckIcon  = {ok:'✓',pending:'⟳',missing:''}[d.status];
     const metaTxt = d.arquivo
@@ -1739,7 +1740,7 @@ function novoNext() {
       else renderDashboard();
     }
     renderDashboard();
-    if (document.getElementById('view-alvaras') && !document.getElementById('view-alvaras').hidden) renderAlvaras();
+    if (document.getElementById('view-alvaras') && !document.getElementById('view-alvaras').hidden) renderList();
     showToast('✅ Alvará ' + prot + ' protocolado com sucesso!');
   }
 }
