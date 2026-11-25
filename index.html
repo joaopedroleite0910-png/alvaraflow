@@ -1501,18 +1501,24 @@ async function doLogin() {
   if (!email || !pass) return loginError('Preencha e-mail e senha.');
   clearLoginMessages();
   setLoading('btn-login', true);
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password: pass });
-  setLoading('btn-login', false);
-  if (error) {
-    if (error.message === 'Invalid login credentials') return loginError('E-mail ou senha incorretos.');
-    if (error.message === 'Email not confirmed') {
-      loginError('E-mail ainda não confirmado. Reenviando confirmação...');
-      await supabase.auth.resend({ type: 'signup', email });
-      return loginError('✉️ Confirmação reenviada para ' + email + '. Clique no link e tente novamente.');
+  try {
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password: pass });
+    if (error) {
+      const msg = (error.message || '').toLowerCase();
+      if (msg.includes('invalid') || msg.includes('credentials')) return loginError('E-mail ou senha incorretos.');
+      if (msg.includes('not confirmed') || msg.includes('email not confirmed')) {
+        loginError('E-mail não confirmado. Reenviando confirmação...');
+        await supabase.auth.resend({ type: 'signup', email }).catch(() => {});
+        return loginError('✉️ E-mail de confirmação reenviado para ' + email + '. Clique no link recebido e tente entrar novamente.');
+      }
+      return loginError(error.message || 'Erro ao fazer login. Tente novamente.');
     }
-    return loginError(error.message);
+    onAuthSuccess(data.user);
+  } catch(e) {
+    loginError('Erro de conexão. Verifique sua internet e tente novamente.');
+  } finally {
+    setLoading('btn-login', false);
   }
-  onAuthSuccess(data.user);
 }
 
 async function doSignup() {
@@ -1526,35 +1532,38 @@ async function doSignup() {
   if (pass !== pass2) return loginError('As senhas não coincidem.');
   clearLoginMessages();
   setLoading('btn-signup', true);
-  const { data, error } = await supabase.auth.signUp({
-    email,
-    password: pass,
-    options: { data: { full_name: name } }
-  });
-  setLoading('btn-signup', false);
-  if (error) {
-    const msgs = {
-      'User already registered': 'Este e-mail já está cadastrado. Faça login.',
-      'Password should be at least 6 characters': 'A senha deve ter ao menos 6 caracteres.',
-      'Unable to validate email address: invalid format': 'Formato de e-mail inválido.',
-    };
-    return loginError(msgs[error.message] || error.message);
+  try {
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password: pass,
+      options: { data: { full_name: name } }
+    });
+    if (error) {
+      const msg = (error.message || '').toLowerCase();
+      if (msg.includes('already registered') || msg.includes('already exists')) return loginError('Este e-mail já está cadastrado. Faça login.');
+      if (msg.includes('password')) return loginError('A senha deve ter ao menos 6 caracteres.');
+      if (msg.includes('email')) return loginError('Formato de e-mail inválido.');
+      return loginError(error.message);
+    }
+    // Confirmação desligada: sessão retornada direto
+    if (data.session) {
+      onAuthSuccess(data.user);
+      return;
+    }
+    // Sem sessão: tenta login automático
+    loginSuccess('✅ Conta criada! Entrando...');
+    try {
+      const { data: ld } = await supabase.auth.signInWithPassword({ email, password: pass });
+      if (ld?.user) { onAuthSuccess(ld.user); return; }
+    } catch(_) {}
+    // Exige confirmação de e-mail
+    loginSuccess('✉️ Conta criada! Verifique seu e-mail, clique no link de confirmação e depois faça login.');
+    setTimeout(() => showLoginForm(), 4000);
+  } catch(e) {
+    loginError('Erro de conexão. Verifique sua internet e tente novamente.');
+  } finally {
+    setLoading('btn-signup', false);
   }
-  // Confirmação desligada: sessão retornada direto
-  if (data.session) {
-    onAuthSuccess(data.user);
-    return;
-  }
-  // Supabase ainda exige confirmação — faz login automático
-  loginSuccess('✅ Conta criada! Entrando...');
-  const { data: ld, error: le } = await supabase.auth.signInWithPassword({ email, password: pass });
-  if (ld?.user) {
-    onAuthSuccess(ld.user);
-    return;
-  }
-  // Usuário precisa confirmar e-mail
-  loginSuccess('✉️ Verifique seu e-mail e clique no link de confirmação para acessar.');
-  setTimeout(() => showLoginForm(), 3000);
 }
 
 async function doReset() {
