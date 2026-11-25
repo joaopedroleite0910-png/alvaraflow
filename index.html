@@ -476,6 +476,10 @@ svg text{font-family:'Inter',sans-serif}
   </div>
 
   <div class="sb-sec">
+    <div class="nav-item" onclick="nav('documentos')" id="nav-documentos">
+      <svg class="nav-ic" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clip-rule="evenodd"/></svg>
+      Documentos
+    </div>
     <div class="sb-sep">Gestão</div>
     <div class="nav-item" onclick="nav('relatorios')">
       <svg class="nav-ic" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 3a1 1 0 000 2v8a2 2 0 002 2h2.586l-1.293 1.293a1 1 0 101.414 1.414L10 15.414l2.293 2.293a1 1 0 001.414-1.414L12.414 15H15a2 2 0 002-2V5a1 1 0 100-2H3zm11.707 4.707a1 1 0 00-1.414-1.414L10 9.586 8.707 8.293a1 1 0 00-1.414 0l-2 2a1 1 0 101.414 1.414L8 10.414l1.293 1.293a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
@@ -772,6 +776,36 @@ svg text{font-family:'Inter',sans-serif}
     <!-- ══════════════════════════════════════════════════════════
          VIEW: PLACEHOLDER (relatórios / configurações)
          ══════════════════════════════════════════════════════════ -->
+    <!-- ══════════════════════════════════════════════════════════
+         VIEW: DOCUMENTOS
+         ══════════════════════════════════════════════════════════ -->
+    <div id="view-documentos" class="view">
+      <div class="page-hd">
+        <h1 class="page-title">Documentos</h1>
+        <p class="page-sub">Repositório de documentos por processo — Prefeitura Municipal de Uruçuca/BA</p>
+      </div>
+      <!-- Seletor de alvará -->
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-body" style="padding:16px 20px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+          <label style="font-weight:600;font-size:13px;color:var(--fg-2)">Processo:</label>
+          <select class="fi" id="docs-alvara-sel" style="max-width:340px;margin:0" onchange="renderDocsPanel()">
+            <option value="">— Selecione um alvará —</option>
+          </select>
+          <span id="docs-status-badge" style="display:none"></span>
+          <div style="margin-left:auto;display:flex;gap:8px">
+            <button class="btn btn-secondary btn-sm" onclick="exportDocsReport()">📄 Exportar checklist</button>
+          </div>
+        </div>
+      </div>
+      <!-- Painel de documentos -->
+      <div id="docs-panel">
+        <div class="empty" style="padding:60px 24px">
+          <div class="empty-ic">📂</div>
+          <div class="empty-msg">Selecione um processo acima para visualizar e gerenciar seus documentos.</div>
+        </div>
+      </div>
+    </div>
+
     <div id="view-relatorios" class="view">
       <div class="page-hd"><h1 class="page-title">Relatórios</h1><p class="page-sub">Em desenvolvimento — disponível em breve</p></div>
       <div class="empty" style="padding:80px 24px"><div class="empty-ic">📊</div><div class="empty-msg">Relatórios e exportações estarão disponíveis na próxima versão.</div></div>
@@ -985,23 +1019,56 @@ const ALVARAS = [];
 
 const TIPOS = [
   {key:'Funcionamento',ic:'🏪',cor:'#4338CA',corBg:'#EEF2FF',
-   desc:'Licença para funcionamento de estabelecimentos comerciais, industriais e de prestação de serviços.',
-   docs:['Contrato Social ou Requerimento de Empresário','Cartão CNPJ (Receita Federal)','Documentos do Responsável (CPF e RG)','Comprovante de Endereço do Imóvel','Auto de Vistoria do Corpo de Bombeiros (AVCB)','Certidão Negativa de Débitos Municipais','Planta Baixa do Imóvel']},
+   desc:'Licença para funcionamento de estabelecimentos comerciais, industriais e de prestação de serviços no município de Uruçuca/BA.',
+   lei:'Lei Municipal nº 592/2018 — Código de Obras e Edificações de Uruçuca',
+   grupos:[
+     {titulo:'Documentação do Requerente',docs:['Requerimento padrão da Prefeitura (Secretaria de Infraestrutura)','RG, CPF e comprovante de residência (pessoa física)','Contrato Social, CNPJ e docs do sócio administrador (pessoa jurídica)','Procuração com firma reconhecida (se protocolo por terceiro)','Guia DAM — Pagamento de taxas municipais quitado']},
+     {titulo:'Documentação do Imóvel',docs:['Certidão de Inteiro Teor da Matrícula (Cartório de Registro de Imóveis)','Certidão Negativa de Débitos (CND) / Comprovante de quitação do IPTU','Número de inscrição imobiliária (BCI)']},
+     {titulo:'Licenças Complementares',docs:['Auto de Vistoria do Corpo de Bombeiros (AVCB/CBMBA)','Alvará da Vigilância Sanitária (estabelecimentos de saúde/alimentos)','Anuência ambiental do INEMA (imóveis na APA Costa de Itacaré/Serra Grande)']},
+   ]},
   {key:'Construção',ic:'🏗️',cor:'#0284C7',corBg:'#E0F2FE',
-   desc:'Autorização para execução de obras de construção, reforma ou ampliação de edificações.',
-   docs:['Projeto Arquitetônico Aprovado pela SEPLAN','ART/RRT do Responsável Técnico','Comprovante de Propriedade do Imóvel','Memorial Descritivo da Obra','Certidão Negativa de Débitos Municipais','Licença Ambiental (quando aplicável)']},
+   desc:'Autorização para obras de construção, reforma ou ampliação conforme Lei nº 592/2018 de Uruçuca/BA. Imóveis em Serra Grande sujeitos à LC nº 06/2011 e à APA Costa de Itacaré.',
+   lei:'Lei Municipal nº 592/2018 · LC nº 06/2011 (Serra Grande) · APA — Decreto Estadual nº 2.186/1993',
+   grupos:[
+     {titulo:'A — Documentação Administrativa',docs:['Requerimento padrão (Prefeitura — Setor de Engenharia e Tributos)','RG, CPF e comprovante de residência (pessoa física)','Contrato Social/Estatuto + CNPJ (pessoa jurídica)','Procuração com firma reconhecida (se protocolo por terceiro)','Guia DAM — Pagamento de taxas de análise e expedição do alvará']},
+     {titulo:'B — Documentação do Imóvel',docs:['Certidão de Inteiro Teor da Matrícula atualizada (30–90 dias)','Certidão Negativa de Débitos (CND) / IPTU quitado + inscrição imobiliária','Certidão de Uso e Ocupação do Solo / Alinhamento (Consulta Prévia de Viabilidade)']},
+     {titulo:'C — Responsabilidade Técnica',docs:['Comprovante de cadastro municipal do profissional (Art. 3º da Lei nº 592/2018)','ART (CREA) ou RRT (CAU) de Projeto Arquitetônico — quitada e assinada','ART/RRT de Execução da Obra — quitada e assinada','ARTs/RRTs dos Projetos Complementares: Estrutural, Elétrico, Hidrossanitário']},
+     {titulo:'D — Projetos Técnicos (2–3 jogos plotados + DWG/PDF)',docs:['Planta de Situação e Locação (recuos, TO, área permeável, acessos)','Plantas Baixas de todos os pavimentos (cotas, compartimentos, vãos)','Planta de Cobertura (caimentos, tipo de telha, beirais, reservatório)','Cortes longitudinal e transversal (pé-direito, cotas de nível, altura total)','Fachadas principal e secundárias','Quadro de Áreas (TO, CA, taxa de permeabilidade)','Memorial Descritivo (materiais, sistema construtivo, esgotamento sanitário)']},
+     {titulo:'E — Licenças Complementares',docs:['Anuência Ambiental do INEMA ou Secretaria Municipal de Meio Ambiente (APA / APP)','AVCB do Corpo de Bombeiros (CBMBA) — edificações comerciais/multifamiliares','Aprovação da Vigilância Sanitária (saúde, alimentação, hospedagem)']},
+   ]},
   {key:'Sanitário',ic:'🏥',cor:'#059669',corBg:'#D1FAE5',
-   desc:'Licença sanitária para estabelecimentos que manipulam alimentos, medicamentos ou prestam serviços de saúde.',
-   docs:['Contrato Social','Cartão CNPJ','Alvará Sanitário Estadual (VISA-GO)','Responsabilidade Técnica (CRF/CRM/CRN)','Planta do Estabelecimento','Certidão Negativa Municipal']},
+   desc:'Licença sanitária municipal para estabelecimentos que manipulam alimentos, medicamentos ou prestam serviços de saúde em Uruçuca/BA.',
+   lei:'Lei Municipal nº 592/2018 · Vigilância Sanitária Municipal (VISA)',
+   grupos:[
+     {titulo:'Documentação do Requerente',docs:['Requerimento padrão assinado pelo responsável legal','RG, CPF e comprovante de residência','Contrato Social e Cartão CNPJ (pessoa jurídica)','Guia DAM — Pagamento de taxas sanitárias']},
+     {titulo:'Documentação Técnica',docs:['Responsabilidade Técnica (CRF/CRM/CRN/CFO conforme atividade)','Planta baixa do estabelecimento com layout dos setores','Memorial descritivo das atividades e fluxos','Laudos de potabilidade da água (quando aplicável)','Certificado de controle de pragas (quando aplicável)']},
+     {titulo:'Licenças Complementares',docs:['Alvará de Funcionamento Municipal','Certidão Negativa de Débitos Municipais','Anuência ambiental (APA/INEMA para estabelecimentos em Serra Grande)']},
+   ]},
   {key:'Publicidade',ic:'📢',cor:'#D97706',corBg:'#FEF3C7',
-   desc:'Autorização para instalação de letreiros, painéis, faixas e demais peças de comunicação visual.',
-   docs:['Projeto do Anúncio em escala 1:50','ART do Responsável Técnico','Autorização do Proprietário do Imóvel','Certidão Negativa Municipal','Fotos do local de instalação']},
+   desc:'Autorização municipal para instalação de letreiros, painéis, faixas e comunicação visual em Uruçuca/BA.',
+   lei:'Lei Municipal nº 592/2018 · Código de Posturas de Uruçuca',
+   grupos:[
+     {titulo:'Documentação do Requerente',docs:['Requerimento padrão assinado pelo responsável','RG, CPF (ou CNPJ) do requerente','Guia DAM — Pagamento de taxas de licença de publicidade']},
+     {titulo:'Documentação Técnica',docs:['Projeto do anúncio em escala (dimensões, materiais, cores)','ART/RRT do responsável técnico pela instalação','Autorização escrita do proprietário do imóvel (se terceiro)','Fotos atuais do local de instalação','Memorial de fixação e segurança estrutural']},
+     {titulo:'Licenças Complementares',docs:['Certidão Negativa de Débitos Municipais','Anuência ambiental (APA/INEMA para anúncios na faixa costeira de Serra Grande)']},
+   ]},
   {key:'Eventos',ic:'🎪',cor:'#7C3AED',corBg:'#EDE9FE',
-   desc:'Licença para realização de eventos públicos ou privados com concentração de pessoas.',
-   docs:['Requerimento assinado pelo organizador','Memorial de segurança do evento','Planta do local com saídas de emergência','AVCB — Corpo de Bombeiros','Autorização da Polícia Militar (eventos >500 pessoas)','Plano de gestão de resíduos']},
+   desc:'Licença para realização de eventos públicos ou privados com concentração de pessoas em Uruçuca/BA e Serra Grande.',
+   lei:'Lei Municipal nº 592/2018 · Normas de Posturas e Segurança Municipal',
+   grupos:[
+     {titulo:'Documentação do Requerente',docs:['Requerimento assinado pelo organizador do evento','RG, CPF (ou CNPJ) do organizador','Guia DAM — Pagamento de taxas de licença de evento']},
+     {titulo:'Plano do Evento',docs:['Memorial descritivo do evento (tipo, público estimado, duração)','Planta do local com saídas de emergência e acessibilidade','Plano de gestão de resíduos sólidos','Plano de segurança e contingência']},
+     {titulo:'Licenças Complementares',docs:['AVCB — Auto de Vistoria do Corpo de Bombeiros (CBMBA)','Autorização da Polícia Militar (eventos com mais de 500 pessoas)','Anuência ambiental do INEMA (eventos em áreas de APA ou APP)','Certidão Negativa de Débitos Municipais']},
+   ]},
   {key:'Demolição',ic:'🔨',cor:'#DC2626',corBg:'#FEE2E2',
-   desc:'Autorização para demolição parcial ou total de edificações.',
-   docs:['ART/RRT do Responsável Técnico','Comprovante de Propriedade','Projeto de Demolição aprovado','Plano de gerenciamento de resíduos (PGRCC)','Certidão Negativa Municipal']},
+   desc:'Autorização para demolição parcial ou total de edificações em Uruçuca/BA, conforme Art. da Lei nº 592/2018.',
+   lei:'Lei Municipal nº 592/2018 · Lei Federal nº 12.305/2010 (PGRCC)',
+   grupos:[
+     {titulo:'Documentação do Requerente',docs:['Requerimento padrão assinado pelo proprietário','RG, CPF (ou CNPJ) do requerente','Guia DAM — Pagamento de taxas de licença de demolição']},
+     {titulo:'Documentação do Imóvel',docs:['Certidão de Inteiro Teor da Matrícula atualizada','Certidão Negativa de Débitos (CND) / IPTU quitado']},
+     {titulo:'Documentação Técnica',docs:['ART/RRT do Responsável Técnico pela demolição','Projeto ou Memorial de Demolição aprovado','Plano de Gerenciamento de Resíduos de Construção Civil (PGRCC)','Comprovante de destinação adequada dos resíduos']},
+     {titulo:'Licenças Complementares',docs:['Anuência ambiental (INEMA) se próximo a APP ou dentro da APA','Certidão Negativa de Débitos Municipais']},
+   ]},
 ];
 
 /* ================================================================
@@ -1032,6 +1099,7 @@ function nav(view, id) {
   if (view === 'detail' && id) { currentId = id; renderDetail(id); }
   if (view === 'tipos') renderTipos();
   if (view === 'dashboard') renderDashboard();
+  if (view === 'documentos') renderDocumentosView();
 }
 
 function updateBreadcrumb(view, id) {
@@ -1255,6 +1323,208 @@ function showDTab(el, pane) {
   document.querySelectorAll('.dtab-pane').forEach(p => p.classList.remove('active'));
   el.classList.add('active');
   document.getElementById('dtab-' + pane).classList.add('active');
+}
+
+/* ================================================================
+   DOCUMENTOS VIEW
+   ================================================================ */
+const STORAGE_BUCKET = 'documentos';
+
+function docsKey() {
+  const uid = currentUser?.id || 'guest';
+  return `alvaraflow_docs_${uid}`;
+}
+
+function loadDocs() {
+  try { return JSON.parse(localStorage.getItem(docsKey()) || '{}'); } catch { return {}; }
+}
+
+function saveDocs(data) {
+  try { localStorage.setItem(docsKey(), JSON.stringify(data)); } catch {}
+}
+
+function storagePath(alvId, doc, filename) {
+  const uid = currentUser?.id || 'guest';
+  const safe = doc.replace(/[^a-zA-Z0-9_\-]/g, '_').substring(0, 60);
+  const ext = filename.split('.').pop();
+  return `${uid}/${alvId}/${safe}.${ext}`;
+}
+
+async function uploadToStorage(alvId, doc, file) {
+  if (!supabase) throw new Error('Supabase não inicializado');
+  const path = storagePath(alvId, doc, file.name);
+  const { error } = await supabase.storage
+    .from(STORAGE_BUCKET)
+    .upload(path, file, { upsert: true, contentType: file.type });
+  if (error) throw error;
+  const { data } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(path);
+  return { path, publicUrl: data.publicUrl };
+}
+
+async function deleteFromStorage(path) {
+  if (!supabase || !path) return;
+  await supabase.storage.from(STORAGE_BUCKET).remove([path]).catch(() => {});
+}
+
+function renderDocumentosView() {
+  const sel = document.getElementById('docs-alvara-sel');
+  const prev = sel.value;
+  sel.innerHTML = '<option value="">— Selecione um processo —</option>';
+  ALVARAS.forEach(a => {
+    const opt = document.createElement('option');
+    opt.value = a.id;
+    opt.textContent = `${a.protocolo} — ${a.requerente} (${a.tipo})`;
+    sel.appendChild(opt);
+  });
+  if (prev && ALVARAS.find(a => a.id == prev)) sel.value = prev;
+  renderDocsPanel();
+}
+
+function renderDocsPanel() {
+  const sel = document.getElementById('docs-alvara-sel');
+  const panel = document.getElementById('docs-panel');
+  const badge = document.getElementById('docs-status-badge');
+  const alvId = sel.value;
+  if (!alvId) {
+    badge.style.display = 'none';
+    panel.innerHTML = '<div class="empty" style="padding:60px 24px"><div class="empty-ic">📂</div><div class="empty-msg">Selecione um processo acima para visualizar e gerenciar seus documentos.</div></div>';
+    return;
+  }
+  const alv = ALVARAS.find(a => a.id == alvId);
+  if (!alv) return;
+  const tipo = TIPOS.find(t => t.key === alv.tipo);
+  const docs = loadDocs();
+  const alvDocs = docs[alvId] || {};
+
+  // Conta totais
+  const grupos = tipo?.grupos || [{titulo:'Documentos Gerais', docs: tipo?.docs || []}];
+  let total = 0, entregues = 0;
+  grupos.forEach(g => g.docs.forEach(d => { total++; if (alvDocs[d]?.status === 'entregue') entregues++; }));
+  const pct = total ? Math.round(entregues / total * 100) : 0;
+
+  // Badge de status
+  badge.style.display = 'inline-flex';
+  badge.innerHTML = `<span class="badge" style="background:${pct===100?'var(--s-ok-bg)':pct>0?'var(--s-pend-bg)':'var(--s-rev-bg)'};color:${pct===100?'var(--s-ok)':pct>0?'var(--s-pend)':'var(--s-rev)'};">${pct}% concluído</span>`;
+
+  // Renderiza grupos
+  panel.innerHTML = `
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+      <div style="font-size:13px;color:var(--muted)">Protocolo: <strong>${alv.protocolo}</strong> · Tipo: <strong>${alv.tipo}</strong> · Requerente: <strong>${alv.requerente}</strong></div>
+      ${tipo?.lei ? `<div style="font-size:11px;color:var(--subtle);background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:3px 8px">⚖️ ${tipo.lei}</div>` : ''}
+    </div>
+    <!-- Barra de progresso -->
+    <div style="background:var(--border);border-radius:99px;height:8px;margin-bottom:20px;overflow:hidden">
+      <div style="height:100%;width:${pct}%;background:${pct===100?'var(--s-ok)':'var(--brand)'};border-radius:99px;transition:width .4s"></div>
+    </div>
+    ${grupos.map((g,gi) => `
+      <div class="card" style="margin-bottom:14px">
+        <div class="card-hd" style="padding:14px 18px 10px">
+          <div class="card-title" style="font-size:13px">${g.titulo}</div>
+          <div style="font-size:11px;color:var(--muted)">${g.docs.filter(d=>alvDocs[d]?.status==='entregue').length}/${g.docs.length} entregues</div>
+        </div>
+        <div style="padding:0 18px 14px;display:flex;flex-direction:column;gap:8px">
+          ${g.docs.map((doc,di) => {
+            const st = alvDocs[doc]?.status || 'pendente';
+            const fname = alvDocs[doc]?.filename || '';
+            const colors = {pendente:['var(--border)','var(--muted)'],entregue:['var(--s-ok-bg)','var(--s-ok)'],analisando:['var(--s-pend-bg)','var(--s-pend)'],aprovado:['#EEF2FF','var(--brand)']};
+            const [bg,fc] = colors[st] || colors.pendente;
+            const labels = {pendente:'Pendente',entregue:'Entregue',analisando:'Em análise',aprovado:'Aprovado'};
+            return `<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface)">
+              <input type="checkbox" ${st==='entregue'||st==='aprovado'?'checked':''} onchange="toggleDoc('${alvId}','${doc.replace(/'/g,"\\'")}',this.checked)" style="width:16px;height:16px;cursor:pointer;accent-color:var(--brand)">
+              <div style="flex:1;min-width:0">
+                <div style="font-size:12.5px;color:var(--fg);font-weight:500">${doc}</div>
+                ${alvDocs[doc]?.publicUrl
+                  ? `<a href="${alvDocs[doc].publicUrl}" target="_blank" rel="noopener" style="font-size:11px;color:var(--brand);margin-top:2px;display:inline-block">📎 ${alvDocs[doc].filename || 'Ver arquivo'}</a>`
+                  : fname ? `<div style="font-size:11px;color:var(--muted);margin-top:2px">📎 ${fname}</div>` : ''}
+              </div>
+              <span style="font-size:11px;font-weight:600;padding:3px 8px;border-radius:5px;background:${bg};color:${fc};white-space:nowrap">${labels[st]||st}</span>
+              <label style="cursor:pointer;font-size:11px;color:var(--brand);font-weight:600;white-space:nowrap" title="Anexar arquivo">
+                📎 Anexar
+                <input type="file" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" style="display:none" onchange="attachDoc('${alvId}','${doc.replace(/'/g,"\\'")}',this)">
+              </label>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>
+    `).join('')}
+    <div style="font-size:11px;color:var(--subtle);text-align:center;padding:8px">
+      ℹ️ Documentos armazenados neste dispositivo. Para envio oficial, protocole presencialmente na Prefeitura de Uruçuca — Secretaria de Infraestrutura (Seg–Sex, 07h–13h).
+    </div>
+  `;
+}
+
+function toggleDoc(alvId, doc, checked) {
+  const docs = loadDocs();
+  if (!docs[alvId]) docs[alvId] = {};
+  docs[alvId][doc] = { ...docs[alvId][doc], status: checked ? 'entregue' : 'pendente' };
+  saveDocs(docs);
+  renderDocsPanel();
+}
+
+async function attachDoc(alvId, doc, input) {
+  const file = input.files[0];
+  if (!file) return;
+  if (file.size > 20 * 1024 * 1024) { alert('Arquivo muito grande. Máximo 20MB.'); return; }
+
+  // Feedback visual imediato
+  const btn = input.closest('label');
+  const origText = btn ? btn.childNodes[0]?.textContent : '';
+  if (btn) btn.childNodes[0].textContent = '⏳ ';
+
+  try {
+    let publicUrl = null, storagePth = null;
+
+    if (supabase && currentUser) {
+      // Upload para Supabase Storage
+      const result = await uploadToStorage(alvId, doc, file);
+      publicUrl = result.publicUrl;
+      storagePth = result.path;
+    }
+
+    const docs = loadDocs();
+    if (!docs[alvId]) docs[alvId] = {};
+    // Remove arquivo anterior do Storage se existia
+    if (docs[alvId][doc]?.storagePath) {
+      await deleteFromStorage(docs[alvId][doc].storagePath);
+    }
+    docs[alvId][doc] = {
+      status: 'entregue',
+      filename: file.name,
+      storagePath: storagePth,
+      publicUrl: publicUrl,
+      attachedAt: new Date().toISOString()
+    };
+    saveDocs(docs);
+    renderDocsPanel();
+  } catch (e) {
+    console.error('Erro ao anexar:', e);
+    alert('Erro ao enviar arquivo: ' + (e.message || e));
+    if (btn) btn.childNodes[0].textContent = origText;
+  }
+}
+
+function exportDocsReport() {
+  const sel = document.getElementById('docs-alvara-sel');
+  if (!sel.value) { alert('Selecione um processo primeiro.'); return; }
+  const alv = ALVARAS.find(a => a.id == sel.value);
+  const tipo = TIPOS.find(t => t.key === alv?.tipo);
+  const docs = loadDocs()[sel.value] || {};
+  const grupos = tipo?.grupos || [{titulo:'Documentos', docs: tipo?.docs || []}];
+  let txt = `CHECKLIST DE DOCUMENTOS — AlvaráFlow\nPrefeitura Municipal de Uruçuca/BA\n`;
+  txt += `${'='.repeat(50)}\n`;
+  txt += `Protocolo: ${alv?.protocolo}\nRequerente: ${alv?.requerente}\nTipo: ${alv?.tipo}\nData: ${new Date().toLocaleDateString('pt-BR')}\n`;
+  if (tipo?.lei) txt += `Legislação: ${tipo.lei}\n`;
+  txt += `${'='.repeat(50)}\n\n`;
+  grupos.forEach(g => {
+    txt += `${g.titulo.toUpperCase()}\n${'-'.repeat(40)}\n`;
+    g.docs.forEach(d => { const st = docs[d]?.status || 'pendente'; txt += `[${st==='entregue'||st==='aprovado'?'X':' '}] ${d}${docs[d]?.filename?' ('+docs[d].filename+')':''}\n`; });
+    txt += '\n';
+  });
+  const blob = new Blob([txt], {type:'text/plain;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `checklist_${alv?.protocolo || 'alvara'}.txt`; a.click();
+  URL.revokeObjectURL(url);
 }
 
 /* ================================================================
