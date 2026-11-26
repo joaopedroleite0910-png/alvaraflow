@@ -2168,7 +2168,6 @@ function closeLogout(e) {
 
 async function doLogout() {
   document.getElementById('modal-logout').hidden = true;
-  if (supabase) await supabase.auth.signOut().catch(() => {});
   currentUser = null;
   ALVARAS.length = 0;
   renderDashboard();
@@ -2177,6 +2176,8 @@ async function doLogout() {
   clearLoginMessages();
   document.getElementById('login-email').value = '';
   document.getElementById('login-pass').value  = '';
+  // signOut em background — não bloqueia a UI
+  if (supabase) supabase.auth.signOut().catch(() => {});
 }
 
 /* ================================================================
