@@ -1880,8 +1880,50 @@ async function getNextProtocolo() {
   return prot;
 }
 
-function _upsertSupabase(alvara) {
+const SYNC_QUEUE_KEY = 'alvaraflow_sync_queue';
+
+function _enqueueSyncAlvara(alvara) {
+  try {
+    const q = JSON.parse(localStorage.getItem(SYNC_QUEUE_KEY) || '[]');
+    const idx = q.findIndex(x => x.id === alvara.id);
+    if (idx >= 0) q[idx] = alvara; else q.push(alvara);
+    localStorage.setItem(SYNC_QUEUE_KEY, JSON.stringify(q));
+  } catch {}
+}
+
+function _dequeueSync(id) {
+  try {
+    const q = JSON.parse(localStorage.getItem(SYNC_QUEUE_KEY) || '[]');
+    localStorage.setItem(SYNC_QUEUE_KEY, JSON.stringify(q.filter(x => x.id !== id)));
+  } catch {}
+}
+
+async function processSyncQueue() {
   if (!supabase || !currentUser) return;
+  let q = [];
+  try { q = JSON.parse(localStorage.getItem(SYNC_QUEUE_KEY) || '[]'); } catch {}
+  if (q.length === 0) return;
+  for (const alvara of q) {
+    try {
+      const { error } = await supabase.from('alvaras').upsert({
+        id: alvara.id, user_id: alvara.user_id || currentUser.id,
+        protocolo: alvara.protocolo, tipo: alvara.tipo,
+        requerente: alvara.requerente, cnpj: alvara.cnpj,
+        responsavel: alvara.responsavel, email: alvara.email,
+        telefone: alvara.telefone, endereco: alvara.endereco,
+        observacoes: alvara.observacoes, status: alvara.status, data: alvara.data
+      });
+      if (!error) _dequeueSync(alvara.id);
+      else console.warn('[sync queue]', alvara.id, error.message);
+    } catch (e) { console.warn('[sync queue]', alvara.id, e.message); }
+  }
+}
+
+function _upsertSupabase(alvara) {
+  if (!supabase || !currentUser) {
+    _enqueueSyncAlvara(alvara);
+    return;
+  }
   supabase.from('alvaras').upsert({
     id: alvara.id, user_id: currentUser.id,
     protocolo: alvara.protocolo, tipo: alvara.tipo,
@@ -1891,8 +1933,9 @@ function _upsertSupabase(alvara) {
     observacoes: alvara.observacoes, status: alvara.status,
     data: alvara.data
   }).then(({ error }) => {
-    if (error) console.warn('[saveAlvara]', error.message);
-  }).catch(() => {});
+    if (error) { console.warn('[saveAlvara]', error.message); _enqueueSyncAlvara(alvara); }
+    else _dequeueSync(alvara.id);
+  }).catch(() => { _enqueueSyncAlvara(alvara); });
 }
 
 async function saveAlvara(alvara) {
@@ -1903,17 +1946,23 @@ async function saveAlvara(alvara) {
 }
 
 async function _upsertSupabaseAsync(alvara) {
-  if (!supabase || !currentUser) return;
-  const { error } = await supabase.from('alvaras').upsert({
-    id: alvara.id, user_id: currentUser.id,
-    protocolo: alvara.protocolo, tipo: alvara.tipo,
-    requerente: alvara.requerente, cnpj: alvara.cnpj,
-    responsavel: alvara.responsavel, email: alvara.email,
-    telefone: alvara.telefone, endereco: alvara.endereco,
-    observacoes: alvara.observacoes, status: alvara.status,
-    data: alvara.data
-  });
-  if (error) console.warn('[saveAlvara]', error.message);
+  if (!supabase || !currentUser) {
+    _enqueueSyncAlvara(alvara);
+    return;
+  }
+  try {
+    const { error } = await supabase.from('alvaras').upsert({
+      id: alvara.id, user_id: currentUser.id,
+      protocolo: alvara.protocolo, tipo: alvara.tipo,
+      requerente: alvara.requerente, cnpj: alvara.cnpj,
+      responsavel: alvara.responsavel, email: alvara.email,
+      telefone: alvara.telefone, endereco: alvara.endereco,
+      observacoes: alvara.observacoes, status: alvara.status,
+      data: alvara.data
+    });
+    if (error) { console.warn('[saveAlvara]', error.message); _enqueueSyncAlvara(alvara); }
+    else _dequeueSync(alvara.id);
+  } catch (e) { console.warn('[saveAlvara]', e.message); _enqueueSyncAlvara(alvara); }
 }
 
 async function novoNext() {
@@ -2327,6 +2376,7 @@ async function onAuthSuccess(user) {
   document.getElementById('modal-login').hidden = true;
   updateUserUI(user);
   await loadAlvaras(); // carrega localStorage imediatamente, Supabase em background
+  processSyncQueue().catch(() => {}); // tenta sincronizar pendentes acumulados
   renderDashboard();
   if (document.getElementById('view-alvaras') && !document.getElementById('view-alvaras').hidden) renderList();
 }
@@ -2411,5 +2461,8 @@ async function doLogout() {
     document.getElementById('modal-login').hidden = false;
     renderDashboard();
   }
+
+  // Retry periódico da fila de sync (a cada 30s)
+  setInterval(() => processSyncQueue().catch(() => {}), 30000);
 })();
 </script>
