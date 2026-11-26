@@ -1817,12 +1817,21 @@ async function loadAlvaras() {
 async function getNextProtocolo() {
   const ano = new Date().getFullYear();
   if (supabase && currentUser) {
-    const { data, error } = await supabase.rpc('next_protocolo', { p_ano: ano });
-    if (!error && data) return `ALV-${ano}-${String(data).padStart(4, '0')}`;
-    if (error) console.warn('[protocolo]', error.message);
+    try {
+      const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 5000));
+      const req = supabase.rpc('next_protocolo', { p_ano: ano });
+      const { data, error } = await Promise.race([req, timeout]);
+      if (!error && data) return `ALV-${ano}-${String(data).padStart(4, '0')}`;
+      console.warn('[protocolo]', error?.message || 'sem dados');
+    } catch(e) {
+      console.warn('[protocolo]', e.message);
+    }
   }
-  // Fallback offline: usa timestamp reduzido
-  return `ALV-${ano}-${String(Date.now()).slice(-4)}`;
+  // Fallback offline: sequencial local
+  const key = `alv_seq_${ano}`;
+  const seq = (parseInt(localStorage.getItem(key) || '0') + 1);
+  localStorage.setItem(key, seq);
+  return `ALV-${ano}-${String(seq).padStart(4, '0')}`;
 }
 
 async function saveAlvara(alvara) {
