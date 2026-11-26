@@ -1816,24 +1816,23 @@ async function loadAlvaras() {
 
 async function saveAlvara(alvara) {
   if (supabase && currentUser) {
-    try {
-      await supabase.from('alvaras').upsert({
-        id: alvara.id,
-        user_id: currentUser.id,
-        protocolo: alvara.protocolo,
-        tipo: alvara.tipo,
-        requerente: alvara.requerente,
-        cnpj: alvara.cnpj,
-        responsavel: alvara.responsavel,
-        email: alvara.email,
-        telefone: alvara.telefone,
-        endereco: alvara.endereco,
-        observacoes: alvara.observacoes,
-        status: alvara.status,
-        data: alvara.data
-      });
-      return;
-    } catch {}
+    const { error } = await supabase.from('alvaras').upsert({
+      id: alvara.id,
+      user_id: currentUser.id,
+      protocolo: alvara.protocolo,
+      tipo: alvara.tipo,
+      requerente: alvara.requerente,
+      cnpj: alvara.cnpj,
+      responsavel: alvara.responsavel,
+      email: alvara.email,
+      telefone: alvara.telefone,
+      endereco: alvara.endereco,
+      observacoes: alvara.observacoes,
+      status: alvara.status,
+      data: alvara.data
+    });
+    if (error) console.error('[saveAlvara]', error.message, error.details);
+    else return;
   }
   // Fallback localStorage
   try { localStorage.setItem(alvarasKey(), JSON.stringify(ALVARAS)); } catch {}
