@@ -1821,6 +1821,12 @@ async function loadAlvaras() {
     localItems.forEach(a => ALVARAS.push(a));
   } catch {}
 
+  // 1b. Re-renderiza já com dados do localStorage (antes do Supabase responder)
+  const _dv = document.getElementById('view-dashboard');
+  if (_dv && _dv.classList.contains('active')) renderDashboard();
+  const _av = document.getElementById('view-alvaras');
+  if (_av && _av.classList.contains('active')) renderList();
+
   // 2. Carrega do Supabase e faz merge inteligente
   if (supabase && currentUser) {
     try {
