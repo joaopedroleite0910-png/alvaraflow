@@ -426,6 +426,14 @@ svg text{font-family:'Inter',sans-serif}
 /* ── VENCIMENTO PILL ──────────────────────────────────────────── */
 .soon{font-size:11.5px;font-weight:600;padding:2px 8px;border-radius:5px;background:var(--s-pend-bg);color:var(--s-pend)}
 
+/* ── REPORTS ──────────────────────────────────────────────────── */
+.rel-grid-2{display:grid;grid-template-columns:1fr 320px;gap:18px;margin-bottom:18px}
+.rel-grid-eq{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:18px}
+.rel-legend-row{display:flex;align-items:center;gap:7px;font-size:12px}
+.rel-legend-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.rel-stacked-bar{height:7px;background:var(--border);border-radius:4px;overflow:hidden;display:flex;margin-top:4px}
+.rel-period-hd{display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:22px}
+
 /* ── RESPONSIVE ───────────────────────────────────────────────── */
 @media(max-width:900px){
   .sidebar{width:52px}
@@ -440,6 +448,7 @@ svg text{font-family:'Inter',sans-serif}
   .dash-grid{grid-template-columns:1fr}
   .info-grid{grid-template-columns:repeat(2,1fr)}
   .tipo-grid{grid-template-columns:1fr}
+  .rel-grid-2,.rel-grid-eq{grid-template-columns:1fr}
 }
 @media(max-width:600px){
   .kpi-grid{grid-template-columns:1fr 1fr}
@@ -488,7 +497,7 @@ svg text{font-family:'Inter',sans-serif}
       <svg class="nav-ic" viewBox="0 0 20 20" fill="currentColor"><path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"/></svg>
       <span>Todos os Alvarás</span>
     </div>
-    <div class="nav-item" onclick="nav('relatorios')">
+    <div class="nav-item" onclick="nav('relatorios')" id="nav-relatorios">
       <svg class="nav-ic" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 3a1 1 0 000 2v8a2 2 0 002 2h2.586l-1.293 1.293a1 1 0 101.414 1.414L10 15.414l2.293 2.293a1 1 0 001.414-1.414L12.414 15H15a2 2 0 002-2V5a1 1 0 100-2H3zm11.707 4.707a1 1 0 00-1.414-1.414L10 9.586 8.707 8.293a1 1 0 00-1.414 0l-2 2a1 1 0 101.414 1.414L8 10.414l1.293 1.293a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
       <span>Relatórios</span>
     </div>
@@ -817,6 +826,135 @@ svg text{font-family:'Inter',sans-serif}
       </div>
     </div>
 
+    <!-- ══════════════════════════════════════════════════════════
+         VIEW: RELATÓRIOS
+         ══════════════════════════════════════════════════════════ -->
+    <div id="view-relatorios" class="view">
+
+      <!-- Header com filtro de período -->
+      <div class="rel-period-hd">
+        <div>
+          <h1 class="page-title">Relatórios</h1>
+          <p class="page-sub">Análise estatística dos processos — Prefeitura Municipal de Uruçuca/BA</p>
+        </div>
+        <div class="tabs" id="rel-period-tabs">
+          <button class="tab active" onclick="setRelPeriodo(this,'30')">30 dias</button>
+          <button class="tab" onclick="setRelPeriodo(this,'90')">3 meses</button>
+          <button class="tab" onclick="setRelPeriodo(this,'180')">6 meses</button>
+          <button class="tab" onclick="setRelPeriodo(this,'365')">1 ano</button>
+          <button class="tab" onclick="setRelPeriodo(this,'all')">Tudo</button>
+        </div>
+      </div>
+
+      <!-- KPIs -->
+      <div class="kpi-grid" style="margin-bottom:20px">
+        <div class="kpi">
+          <div class="kpi-ic" style="background:var(--brand-light)">📋</div>
+          <div class="kpi-lbl">Total no Período</div>
+          <div class="kpi-val" style="color:var(--brand)" id="rel-total">0</div>
+          <div class="kpi-delta" id="rel-total-d">—</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-ic" style="background:var(--s-ok-bg)">✅</div>
+          <div class="kpi-lbl">Taxa de Aprovação</div>
+          <div class="kpi-val" style="color:var(--s-ok)" id="rel-taxa">0%</div>
+          <div class="kpi-delta" id="rel-taxa-d">—</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-ic" style="background:var(--s-pend-bg)">⏱</div>
+          <div class="kpi-lbl">Tempo Médio Aberto</div>
+          <div class="kpi-val" style="color:var(--s-pend)" id="rel-tempo">—</div>
+          <div class="kpi-delta" id="rel-tempo-d">—</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-ic" style="background:var(--s-rej-bg)">❌</div>
+          <div class="kpi-lbl">Rejeitados</div>
+          <div class="kpi-val" style="color:var(--s-rej)" id="rel-rej">0</div>
+          <div class="kpi-delta" id="rel-rej-d">—</div>
+        </div>
+      </div>
+
+      <!-- Linha 1: gráfico de tendência + donut de status -->
+      <div class="rel-grid-2">
+        <div class="card">
+          <div class="card-hd">
+            <div class="card-title">Evolução Mensal de Processos</div>
+            <div style="display:flex;gap:12px;align-items:center">
+              <div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted)">
+                <div style="width:16px;height:2px;background:var(--brand);border-radius:2px"></div> Total
+              </div>
+              <div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted)">
+                <div style="width:16px;height:2px;background:var(--s-ok);border-radius:2px;opacity:.8"></div> Aprovados
+              </div>
+            </div>
+          </div>
+          <div style="padding:16px 18px 12px">
+            <svg id="rel-trend-svg" viewBox="0 0 500 150" style="width:100%;display:block" preserveAspectRatio="xMidYMid meet" aria-label="Evolução mensal"></svg>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-hd"><div class="card-title">Distribuição por Status</div></div>
+          <div style="padding:20px 18px">
+            <div style="display:flex;align-items:center;gap:18px">
+              <svg id="rel-donut-svg" viewBox="0 0 120 120" style="width:120px;height:120px;flex-shrink:0" aria-label="Donut de status"></svg>
+              <div id="rel-donut-legend" style="display:flex;flex-direction:column;gap:9px;flex:1"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Linha 2: por tipo + aprovados vs rejeitados -->
+      <div class="rel-grid-eq">
+        <div class="card">
+          <div class="card-hd"><div class="card-title">Volume por Tipo de Alvará</div></div>
+          <div class="mini-chart" id="rel-tipo-chart"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-hd"><div class="card-title">Aprovados vs Rejeitados por Tipo</div></div>
+          <div style="padding:16px 18px" id="rel-tipo-status-wrap"></div>
+        </div>
+      </div>
+
+      <!-- Linha 3: tabelas -->
+      <div class="rel-grid-eq">
+        <div class="card">
+          <div class="card-hd"><div class="card-title">Principais Requerentes</div></div>
+          <div class="tbl-wrap">
+            <table>
+              <thead><tr>
+                <th>Requerente</th>
+                <th>CNPJ / CPF</th>
+                <th style="text-align:center">Total</th>
+                <th style="text-align:center">Aprovados</th>
+              </tr></thead>
+              <tbody id="rel-req-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-hd">
+            <div class="card-title">Pendentes há Mais Tempo</div>
+            <span style="font-size:11px;color:var(--muted)">Clique para abrir</span>
+          </div>
+          <div class="tbl-wrap">
+            <table>
+              <thead><tr>
+                <th>Protocolo</th>
+                <th>Requerente</th>
+                <th>Tipo</th>
+                <th style="text-align:right">Dias</th>
+              </tr></thead>
+              <tbody id="rel-pend-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
          ══════════════════════════════════════════════════════════ -->
     <div id="view-documentos" class="view">
       <div class="page-hd">
@@ -1140,6 +1278,7 @@ function nav(view, id) {
   if (view === 'dashboard') renderDashboard();
   if (view === 'documentos') renderDocumentosView();
   if (view === 'todos') renderTodosAlvaras();
+  if (view === 'relatorios') renderRelatorios();
 }
 
 function updateBreadcrumb(view, id) {
@@ -2187,6 +2326,243 @@ function filterTodos() {
       <td style="font-size:11px;color:var(--subtle)">${(a.user_id||'').slice(0,8)}…</td>
       <td>${a.data || '—'}</td>
     </tr>`).join('');
+}
+
+/* ================================================================
+   RELATÓRIOS
+   ================================================================ */
+let relPeriodo = 'all';
+
+function setRelPeriodo(el, p) {
+  document.querySelectorAll('#rel-period-tabs .tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  relPeriodo = p;
+  renderRelatorios();
+}
+
+function relFilteredAlvaras() {
+  if (relPeriodo === 'all') return ALVARAS;
+  const days = parseInt(relPeriodo);
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - days);
+  return ALVARAS.filter(a => new Date(a.createdAt || a.data) >= cutoff);
+}
+
+function polarToXY(cx, cy, r, angleDeg) {
+  const rad = angleDeg * Math.PI / 180;
+  return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
+}
+
+function arcSegment(cx, cy, r, ir, startA, endA, color) {
+  if (endA - startA >= 359.9) endA = startA + 359.5;
+  const p1 = polarToXY(cx, cy, r, startA);
+  const p2 = polarToXY(cx, cy, r, endA);
+  const p3 = polarToXY(cx, cy, ir, endA);
+  const p4 = polarToXY(cx, cy, ir, startA);
+  const large = (endA - startA) > 180 ? 1 : 0;
+  return `<path d="M ${p1.x.toFixed(2)} ${p1.y.toFixed(2)} A ${r} ${r} 0 ${large} 1 ${p2.x.toFixed(2)} ${p2.y.toFixed(2)} L ${p3.x.toFixed(2)} ${p3.y.toFixed(2)} A ${ir} ${ir} 0 ${large} 0 ${p4.x.toFixed(2)} ${p4.y.toFixed(2)} Z" fill="${color}"/>`;
+}
+
+function renderRelatorios() {
+  const data = relFilteredAlvaras();
+  const hoje = new Date();
+
+  // ── KPIs ──────────────────────────────────────────────────────
+  const total     = data.length;
+  const aprovados = data.filter(a => a.status === 'aprovado').length;
+  const rejeitados= data.filter(a => a.status === 'rejeitado' || a.status === 'indeferido').length;
+  const taxa      = total > 0 ? Math.round((aprovados / total) * 100) : 0;
+
+  document.getElementById('rel-total').textContent = total;
+  document.getElementById('rel-total-d').textContent = total === 0 ? 'Nenhum no período'
+    : `${total} processo${total !== 1 ? 's' : ''} cadastrado${total !== 1 ? 's' : ''}`;
+  document.getElementById('rel-taxa').textContent = taxa + '%';
+  document.getElementById('rel-taxa-d').textContent = `${aprovados} aprov. · ${total - aprovados} pendentes/outros`;
+  document.getElementById('rel-rej').textContent = rejeitados;
+  document.getElementById('rel-rej-d').textContent = rejeitados === 0 ? 'Nenhum rejeitado'
+    : `${rejeitados} processo${rejeitados !== 1 ? 's' : ''} rejeitado${rejeitados !== 1 ? 's' : ''}`;
+
+  const tempos = data.filter(a => a.createdAt || a.data)
+    .map(a => Math.max(0, Math.floor((hoje - new Date(a.createdAt || a.data)) / 86400000)));
+  const avgTempo = tempos.length ? Math.round(tempos.reduce((s, v) => s + v, 0) / tempos.length) : null;
+  document.getElementById('rel-tempo').textContent = avgTempo !== null ? avgTempo + 'd' : '—';
+  document.getElementById('rel-tempo-d').textContent = avgTempo !== null
+    ? `média desde abertura (${tempos.length} proc.)`
+    : 'Sem dados de datas';
+
+  // ── Gráfico de tendência mensal ────────────────────────────────
+  const months = [];
+  for (let i = 11; i >= 0; i--) {
+    const d = new Date(hoje.getFullYear(), hoje.getMonth() - i, 1);
+    months.push({ year: d.getFullYear(), month: d.getMonth(),
+      count: 0, aprov: 0,
+      label: d.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '') });
+  }
+  data.forEach(a => {
+    const d = new Date(a.createdAt || a.data);
+    const m = months.find(m => m.year === d.getFullYear() && m.month === d.getMonth());
+    if (m) { m.count++; if (a.status === 'aprovado') m.aprov++; }
+  });
+  const W = 500, H = 150, padL = 28, padR = 10, padT = 12, padB = 28;
+  const cW = W - padL - padR, cH = H - padT - padB;
+  const maxV = Math.max(...months.map(m => m.count), 1);
+  const xS   = cW / (months.length - 1);
+  const xOf  = (i) => padL + i * xS;
+  const yOf  = (v) => padT + cH - (v / maxV) * cH;
+
+  const ptsAll   = months.map((m, i) => `${xOf(i).toFixed(1)},${yOf(m.count).toFixed(1)}`).join(' ');
+  const ptsAprov = months.map((m, i) => `${xOf(i).toFixed(1)},${yOf(m.aprov).toFixed(1)}`).join(' ');
+  const areaAll  = `M ${xOf(0).toFixed(1)},${yOf(months[0].count).toFixed(1)} ${months.map((m,i)=>`L ${xOf(i).toFixed(1)},${yOf(m.count).toFixed(1)}`).join(' ')} L ${xOf(11).toFixed(1)},${padT+cH} L ${padL},${padT+cH} Z`;
+
+  const svgTrend = document.getElementById('rel-trend-svg');
+  svgTrend.innerHTML = `
+    <line x1="${padL}" y1="${padT}" x2="${padL}" y2="${padT+cH}" stroke="var(--border)" stroke-width="1"/>
+    <line x1="${padL}" y1="${padT+cH}" x2="${W-padR}" y2="${padT+cH}" stroke="var(--border)" stroke-width="1"/>
+    <line x1="${padL}" y1="${padT+cH/2}" x2="${W-padR}" y2="${padT+cH/2}" stroke="var(--border)" stroke-width=".5" stroke-dasharray="3,3"/>
+    <text x="${padL-3}" y="${padT+4}" text-anchor="end" font-size="8" fill="var(--muted)">${maxV}</text>
+    <text x="${padL-3}" y="${padT+cH/2+3}" text-anchor="end" font-size="8" fill="var(--muted)">${Math.round(maxV/2)}</text>
+    <text x="${padL-3}" y="${padT+cH+2}" text-anchor="end" font-size="8" fill="var(--muted)">0</text>
+    <path d="${areaAll}" fill="var(--brand)" opacity=".1"/>
+    <polyline points="${ptsAll}" fill="none" stroke="var(--brand)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+    <polyline points="${ptsAprov}" fill="none" stroke="var(--s-ok)" stroke-width="1.5" stroke-dasharray="4,3" stroke-linejoin="round" stroke-linecap="round" opacity=".9"/>
+    ${months.map((m, i) => m.count > 0 ? `<circle cx="${xOf(i).toFixed(1)}" cy="${yOf(m.count).toFixed(1)}" r="3" fill="var(--brand)" stroke="var(--surface)" stroke-width="1.5"/>` : '').join('')}
+    ${months.map((m, i) => (i % 2 === 0) ? `<text x="${xOf(i).toFixed(1)}" y="${padT+cH+16}" text-anchor="middle" font-size="9" fill="var(--muted)">${m.label}</text>` : '').join('')}
+    ${total === 0 ? `<text x="${W/2}" y="${H/2}" text-anchor="middle" font-size="10" fill="var(--subtle)">Nenhum dado no período</text>` : ''}
+  `;
+
+  // ── Donut de status ────────────────────────────────────────────
+  const statusCfg = {
+    aprovado:  { label: 'Aprovado',    color: 'var(--s-ok)'   },
+    pendente:  { label: 'Pendente',    color: 'var(--s-pend)' },
+    analise:   { label: 'Em Análise',  color: 'var(--s-rev)'  },
+    rejeitado: { label: 'Rejeitado',   color: 'var(--s-rej)'  },
+    indeferido:{ label: 'Indeferido',  color: 'var(--s-rej)'  },
+    vencido:   { label: 'Vencido',     color: 'var(--s-exp)'  },
+  };
+  const sCounts = {};
+  data.forEach(a => sCounts[a.status] = (sCounts[a.status] || 0) + 1);
+  const sEntries = Object.entries(sCounts).sort((a, b) => b[1] - a[1]);
+  const svgDonut = document.getElementById('rel-donut-svg');
+  const donutLeg = document.getElementById('rel-donut-legend');
+  if (data.length === 0) {
+    svgDonut.innerHTML = `<text x="60" y="65" text-anchor="middle" font-size="10" fill="var(--subtle)">Sem dados</text>`;
+    donutLeg.innerHTML = '';
+  } else {
+    let ang = -90;
+    let paths = '';
+    sEntries.forEach(([st, cnt]) => {
+      const sweep = (cnt / total) * 360;
+      const col = statusCfg[st]?.color || 'var(--muted)';
+      paths += arcSegment(60, 60, 50, 32, ang, ang + sweep - 0.3, col);
+      ang += sweep;
+    });
+    svgDonut.innerHTML = `${paths}
+      <text x="60" y="55" text-anchor="middle" font-size="20" font-weight="800" fill="var(--fg)" font-family="'Plus Jakarta Sans',sans-serif">${total}</text>
+      <text x="60" y="70" text-anchor="middle" font-size="9" fill="var(--muted)">processos</text>`;
+    donutLeg.innerHTML = sEntries.map(([st, cnt]) => {
+      const col = statusCfg[st]?.color || 'var(--muted)';
+      const pct = Math.round((cnt / total) * 100);
+      return `<div class="rel-legend-row">
+        <div class="rel-legend-dot" style="background:${col}"></div>
+        <div style="flex:1;color:var(--fg-2)">${statusCfg[st]?.label || st}</div>
+        <div style="font-weight:600;color:var(--fg)">${cnt}</div>
+        <div style="color:var(--muted);width:30px;text-align:right">${pct}%</div>
+      </div>`;
+    }).join('');
+  }
+
+  // ── Por tipo (barras) ──────────────────────────────────────────
+  const tipoChart = document.getElementById('rel-tipo-chart');
+  const tCounts = {};
+  data.forEach(a => tCounts[a.tipo] = (tCounts[a.tipo] || 0) + 1);
+  const tEntries = Object.entries(tCounts).sort((a, b) => b[1] - a[1]);
+  const tColors  = ['#4338CA','#0284C7','#059669','#D97706','#7C3AED','#DC2626','#0891B2'];
+  if (tEntries.length === 0) {
+    tipoChart.innerHTML = `<div class="empty" style="padding:24px 16px"><div class="empty-ic" style="font-size:28px">📊</div><div class="empty-msg" style="font-size:12px">Sem dados no período</div></div>`;
+  } else {
+    const tMax = tEntries[0][1];
+    tipoChart.innerHTML = tEntries.map(([k, v], i) => `
+      <div class="mc-row">
+        <div class="mc-lbl">${k}</div>
+        <div class="mc-track"><div class="mc-fill" style="width:${(v/tMax)*100}%;background:${tColors[i%tColors.length]}"></div></div>
+        <div class="mc-val">${v}</div>
+      </div>`).join('');
+  }
+
+  // ── Aprovados vs Rejeitados por tipo ──────────────────────────
+  const tsWrap = document.getElementById('rel-tipo-status-wrap');
+  if (data.length === 0) {
+    tsWrap.innerHTML = `<div class="empty" style="padding:24px"><div class="empty-ic" style="font-size:28px">📊</div><div class="empty-msg" style="font-size:12px">Sem dados no período</div></div>`;
+  } else {
+    const byTipo = {};
+    data.forEach(a => {
+      if (!byTipo[a.tipo]) byTipo[a.tipo] = { total:0, aprov:0, rej:0, outros:0 };
+      byTipo[a.tipo].total++;
+      if (a.status === 'aprovado') byTipo[a.tipo].aprov++;
+      else if (a.status === 'rejeitado' || a.status === 'indeferido') byTipo[a.tipo].rej++;
+      else byTipo[a.tipo].outros++;
+    });
+    const tsEntries = Object.entries(byTipo).sort((a,b) => b[1].total - a[1].total);
+    const tsMax = Math.max(...tsEntries.map(([,v]) => v.total), 1);
+    tsWrap.innerHTML = `<div style="display:flex;flex-direction:column;gap:13px">${tsEntries.map(([tipo, v]) => `
+      <div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+          <span style="font-size:12.5px;color:var(--fg-2);font-weight:500">${tipo}</span>
+          <span style="font-size:11.5px;color:var(--muted)">
+            <span style="color:var(--s-ok)">${v.aprov}↑</span> ·
+            <span style="color:var(--s-rej)">${v.rej}↓</span> ·
+            <span style="color:var(--s-pend)">${v.outros} em aberto</span>
+          </span>
+        </div>
+        <div class="rel-stacked-bar">
+          <div style="width:${(v.aprov/tsMax)*100}%;background:var(--s-ok);transition:width .4s"></div>
+          <div style="width:${(v.rej/tsMax)*100}%;background:var(--s-rej);transition:width .4s"></div>
+          <div style="width:${(v.outros/tsMax)*100}%;background:var(--s-pend);opacity:.6;transition:width .4s"></div>
+        </div>
+      </div>`).join('')}</div>`;
+  }
+
+  // ── Top requerentes ────────────────────────────────────────────
+  const reqMap = {};
+  data.forEach(a => {
+    if (!reqMap[a.requerente]) reqMap[a.requerente] = { cnpj: a.cnpj || '', total: 0, aprov: 0 };
+    reqMap[a.requerente].total++;
+    if (a.status === 'aprovado') reqMap[a.requerente].aprov++;
+  });
+  const reqSorted = Object.entries(reqMap).sort((a,b) => b[1].total - a[1].total).slice(0, 7);
+  const reqTbody = document.getElementById('rel-req-tbody');
+  reqTbody.innerHTML = reqSorted.length === 0
+    ? `<tr><td colspan="4" style="text-align:center;color:var(--subtle);padding:28px">Nenhum dado no período</td></tr>`
+    : reqSorted.map(([nome, v]) => `
+      <tr>
+        <td>${nome}</td>
+        <td class="td-mono">${v.cnpj || '—'}</td>
+        <td style="text-align:center;font-weight:700;color:var(--brand)">${v.total}</td>
+        <td style="text-align:center;font-weight:600;color:var(--s-ok)">${v.aprov}</td>
+      </tr>`).join('');
+
+  // ── Pendentes há mais tempo ────────────────────────────────────
+  const pending = data
+    .filter(a => a.status === 'pendente' || a.status === 'analise')
+    .map(a => {
+      const d = new Date(a.createdAt || a.data);
+      const dias = isNaN(d) ? 0 : Math.max(0, Math.floor((hoje - d) / 86400000));
+      return { ...a, dias };
+    })
+    .sort((a, b) => b.dias - a.dias)
+    .slice(0, 7);
+  const pendTbody = document.getElementById('rel-pend-tbody');
+  pendTbody.innerHTML = pending.length === 0
+    ? `<tr><td colspan="4" style="text-align:center;color:var(--subtle);padding:28px">Nenhum pendente no período</td></tr>`
+    : pending.map(a => {
+        const cor = a.dias > 30 ? 'var(--s-rej)' : a.dias > 15 ? 'var(--s-pend)' : 'var(--fg-2)';
+        return `<tr onclick="nav('detail','${a.id}')" style="cursor:pointer">
+          <td class="td-mono">${a.protocolo || a.id}</td>
+          <td>${a.requerente}</td>
+          <td style="font-size:12px;color:var(--muted)">${a.tipo}</td>
+          <td style="text-align:right;font-weight:700;color:${cor}">${a.dias}d</td>
+        </tr>`;
+      }).join('');
 }
 
 function showToast(msg) {
