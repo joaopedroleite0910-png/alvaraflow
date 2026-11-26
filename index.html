@@ -2051,19 +2051,34 @@ async function renderTodosAlvaras() {
   const loading = document.getElementById('todos-loading');
   const table   = document.getElementById('todos-table');
   const empty   = document.getElementById('todos-empty');
-  loading.hidden = false; table.hidden = true; empty.hidden = true;
 
-  if (supabase && currentUser) {
-    const { data, error } = await supabase
-      .from('alvaras').select('*').order('created_at', { ascending: false });
+  // Mostra dados locais do usuário atual imediatamente (sem esperar Supabase)
+  TODOS_ALVARAS = [...ALVARAS];
+  loading.hidden = true;
+  filterTodos();
+
+  if (!supabase || !currentUser) return;
+
+  // Tenta buscar todas as contas do Supabase com timeout de 8s
+  loading.hidden = false;
+  try {
+    const withTimeout = (promise, ms) =>
+      Promise.race([promise, new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), ms))]);
+
+    const { data, error } = await withTimeout(
+      supabase.from('alvaras').select('*').order('created_at', { ascending: false }),
+      8000
+    );
+
     if (!error && data) {
-      TODOS_ALVARAS = data;
-    } else {
-      console.warn('[todos]', error?.message);
-      TODOS_ALVARAS = [];
+      // Merge: dados do Supabase + itens locais que ainda não foram sincronizados
+      const supabaseIds = new Set(data.map(r => r.id));
+      const localOnly   = ALVARAS.filter(a => !supabaseIds.has(a.id));
+      TODOS_ALVARAS = [...data, ...localOnly];
     }
-  } else {
-    TODOS_ALVARAS = [...ALVARAS];
+  } catch (e) {
+    console.warn('[todos]', e.message);
+    // Mantém dados locais já exibidos
   }
 
   loading.hidden = true;
