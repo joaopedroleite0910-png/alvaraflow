@@ -1777,18 +1777,19 @@ function _salvarLocalStorage() {
 }
 
 async function loadAlvaras() {
-  // 1. Carrega do localStorage imediatamente (sem esperar rede)
+  // 1. Carrega localStorage como cache rápido enquanto Supabase responde
   try {
     const saved = JSON.parse(localStorage.getItem(alvarasKey()) || '[]');
     ALVARAS.length = 0;
     saved.forEach(a => ALVARAS.push(a));
   } catch {}
 
-  // 2. Sincroniza com Supabase em segundo plano
+  // 2. Carrega do Supabase (fonte principal) — aguarda resposta
   if (supabase && currentUser) {
-    supabase.from('alvaras').select('*').order('created_at', { ascending: false })
-      .then(({ data, error }) => {
-        if (error || !data) return;
+    try {
+      const { data, error } = await supabase
+        .from('alvaras').select('*').order('created_at', { ascending: false });
+      if (!error && data) {
         if (data.length > 0) {
           ALVARAS.length = 0;
           data.forEach(row => ALVARAS.push({
@@ -1799,13 +1800,12 @@ async function loadAlvaras() {
             data: row.data, createdAt: row.created_at
           }));
           _salvarLocalStorage();
-          renderDashboard();
-          if (document.getElementById('view-alvaras') && !document.getElementById('view-alvaras').hidden) renderList();
         } else if (ALVARAS.length > 0) {
-          // Banco vazio mas local tem dados — migra silenciosamente
+          // Banco vazio mas local tem dados — migra
           ALVARAS.forEach(a => _upsertSupabase(a));
         }
-      }).catch(() => {});
+      }
+    } catch {}
   }
 }
 
@@ -1843,11 +1843,25 @@ function _upsertSupabase(alvara) {
   }).catch(() => {});
 }
 
-function saveAlvara(alvara) {
-  // Sempre salva no localStorage de imediato
+async function saveAlvara(alvara) {
+  // Sempre salva no localStorage de imediato (cache local)
   _salvarLocalStorage();
-  // Envia para Supabase em segundo plano
-  _upsertSupabase(alvara);
+  // Envia para Supabase (fonte oficial)
+  await _upsertSupabaseAsync(alvara);
+}
+
+async function _upsertSupabaseAsync(alvara) {
+  if (!supabase || !currentUser) return;
+  const { error } = await supabase.from('alvaras').upsert({
+    id: alvara.id, user_id: currentUser.id,
+    protocolo: alvara.protocolo, tipo: alvara.tipo,
+    requerente: alvara.requerente, cnpj: alvara.cnpj,
+    responsavel: alvara.responsavel, email: alvara.email,
+    telefone: alvara.telefone, endereco: alvara.endereco,
+    observacoes: alvara.observacoes, status: alvara.status,
+    data: alvara.data
+  });
+  if (error) console.warn('[saveAlvara]', error.message);
 }
 
 async function novoNext() {
@@ -1894,16 +1908,19 @@ async function novoNext() {
       createdAt: new Date().toISOString()
     };
     ALVARAS.unshift(novoAlvara);
-    saveAlvara(novoAlvara); // salva localStorage + Supabase background
+    _salvarLocalStorage(); // cache local imediato
 
+    // Fecha modal antes de aguardar Supabase
     document.getElementById('modal-novo').hidden = true;
     novoStep = 1;
     btn.textContent = 'Avançar';
     btn.disabled = false;
-
     renderDashboard();
     if (document.getElementById('view-alvaras') && !document.getElementById('view-alvaras').hidden) renderList();
     showToast('✅ Alvará ' + prot + ' protocolado com sucesso!');
+
+    // Salva no Supabase em background (já com localStorage garantido)
+    _upsertSupabase(novoAlvara);
   }
 }
 
