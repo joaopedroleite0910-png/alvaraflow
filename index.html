@@ -1814,32 +1814,37 @@ function _salvarLocalStorage() {
 
 async function loadAlvaras() {
   // 1. Carrega localStorage como cache rápido enquanto Supabase responde
+  let localItems = [];
   try {
-    const saved = JSON.parse(localStorage.getItem(alvarasKey()) || '[]');
+    localItems = JSON.parse(localStorage.getItem(alvarasKey()) || '[]');
     ALVARAS.length = 0;
-    saved.forEach(a => ALVARAS.push(a));
+    localItems.forEach(a => ALVARAS.push(a));
   } catch {}
 
-  // 2. Carrega do Supabase (fonte principal) — aguarda resposta
+  // 2. Carrega do Supabase e faz merge inteligente
   if (supabase && currentUser) {
     try {
       const { data, error } = await supabase
         .from('alvaras').select('*').order('created_at', { ascending: false });
       if (!error && data) {
-        if (data.length > 0) {
-          ALVARAS.length = 0;
-          data.forEach(row => ALVARAS.push({
-            id: row.id, protocolo: row.protocolo, tipo: row.tipo,
-            requerente: row.requerente, cnpj: row.cnpj, responsavel: row.responsavel,
-            email: row.email, telefone: row.telefone, endereco: row.endereco,
-            observacoes: row.observacoes, status: row.status,
-            data: row.data, createdAt: row.created_at
-          }));
-          _salvarLocalStorage();
-        } else if (ALVARAS.length > 0) {
-          // Banco vazio mas local tem dados — migra
-          ALVARAS.forEach(a => _upsertSupabase(a));
+        const supabaseIds = new Set(data.map(r => r.id));
+        // Itens que existem localmente mas não no Supabase → envia para o banco
+        const localOnly = localItems.filter(a => !supabaseIds.has(a.id));
+        if (localOnly.length > 0) {
+          localOnly.forEach(a => _upsertSupabase(a));
         }
+        // Merge: itens do Supabase + itens locais ainda não sincronizados
+        const supabaseItems = data.map(row => ({
+          id: row.id, protocolo: row.protocolo, tipo: row.tipo,
+          requerente: row.requerente, cnpj: row.cnpj, responsavel: row.responsavel,
+          email: row.email, telefone: row.telefone, endereco: row.endereco,
+          observacoes: row.observacoes, status: row.status,
+          data: row.data, createdAt: row.created_at
+        }));
+        ALVARAS.length = 0;
+        supabaseItems.forEach(a => ALVARAS.push(a));
+        localOnly.forEach(a => ALVARAS.push(a));
+        _salvarLocalStorage();
       }
     } catch {}
   }
