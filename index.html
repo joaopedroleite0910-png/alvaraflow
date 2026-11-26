@@ -1564,35 +1564,35 @@ async function attachDoc(alvId, doc, input) {
   const file = input.files[0];
   if (!file) return;
   if (file.size > 20 * 1024 * 1024) { alert('Arquivo muito grande. Máximo 20MB.'); return; }
+  if (!currentUser) { alert('Faça login para enviar documentos.'); return; }
 
-  const btn = input.closest('label');
-  const origText = btn ? btn.childNodes[0]?.textContent : '';
-  if (btn) btn.childNodes[0].textContent = '⏳ ';
+  // Mostra imediatamente com URL local
+  const localUrl = URL.createObjectURL(file);
+  const info = {
+    status: 'entregue',
+    filename: file.name,
+    storagePath: null,
+    publicUrl: localUrl,
+    attachedAt: new Date().toISOString()
+  };
+  const docs = loadDocs();
+  if (!docs[alvId]) docs[alvId] = {};
+  docs[alvId][doc] = info;
+  saveDocs(docs);
+  renderDocsPanel();
+  showToast('📎 ' + file.name + ' anexado!');
 
-  try {
-    if (!supabase || !currentUser) { alert('Faça login para enviar documentos.'); return; }
-
-    const docs = loadDocs();
-    if (!docs[alvId]) docs[alvId] = {};
-    if (docs[alvId][doc]?.storagePath) await deleteFromStorage(docs[alvId][doc].storagePath);
-
-    const { path, publicUrl } = await uploadToStorage(alvId, doc, file);
-
-    const info = {
-      status: 'entregue',
-      filename: file.name,
-      storagePath: path,
-      publicUrl,
-      attachedAt: new Date().toISOString()
-    };
-    docs[alvId][doc] = info;
-    saveDocs(docs);
-    await saveDocToSupabase(alvId, doc, info);
-    renderDocsPanel();
-  } catch (e) {
-    console.error('Erro ao anexar:', e);
-    alert('Erro ao enviar arquivo: ' + (e.message || e));
-    if (btn) btn.childNodes[0].textContent = origText;
+  // Sobe para o Supabase em segundo plano
+  if (supabase) {
+    uploadToStorage(alvId, doc, file).then(({ path, publicUrl }) => {
+      const docsNow = loadDocs();
+      if (docsNow[alvId]?.[doc]) {
+        docsNow[alvId][doc].storagePath = path;
+        docsNow[alvId][doc].publicUrl   = publicUrl;
+        saveDocs(docsNow);
+        saveDocToSupabase(alvId, doc, docsNow[alvId][doc]).catch(() => {});
+      }
+    }).catch(e => console.warn('[upload doc]', e.message));
   }
 }
 
@@ -1921,29 +1921,31 @@ async function enviarDocDetalhe(input) {
   const file = input.files[0];
   if (!file) return;
   if (file.size > 20 * 1024 * 1024) { alert('Arquivo muito grande. Máximo 20MB.'); return; }
-  const alv = ALVARAS.find(a => a.id === currentId);
-  if (!alv) return;
+  if (!currentUser) { alert('Faça login para enviar documentos.'); return; }
 
-  try {
-    if (supabase && currentUser) {
-      const path = `${currentUser.id}/${currentId}/geral_${Date.now()}.${file.name.split('.').pop()}`;
-      const { error } = await supabase.storage.from(STORAGE_BUCKET).upload(path, file, { upsert: true });
-      if (error) throw error;
+  const docKey = `__geral_${file.name}`;
+  const localUrl = URL.createObjectURL(file);
+  const info = { status: 'entregue', filename: file.name, storagePath: null, publicUrl: localUrl, attachedAt: new Date().toISOString() };
+  const docs = loadDocs();
+  if (!docs[currentId]) docs[currentId] = {};
+  docs[currentId][docKey] = info;
+  saveDocs(docs);
+  showToast('📎 ' + file.name + ' anexado!');
+  renderDetail(currentId);
+
+  if (supabase) {
+    const path = `${currentUser.id}/${currentId}/geral_${Date.now()}.${file.name.split('.').pop()}`;
+    supabase.storage.from(STORAGE_BUCKET).upload(path, file, { upsert: true }).then(({ error }) => {
+      if (error) { console.warn('[upload detalhe]', error.message); return; }
       const { data } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(path);
-      // Salva referência no localStorage de docs
-      const info = { status: 'entregue', filename: file.name, storagePath: path, publicUrl: data.publicUrl, attachedAt: new Date().toISOString() };
-      const docs = loadDocs();
-      if (!docs[currentId]) docs[currentId] = {};
-      docs[currentId][`__geral_${file.name}`] = info;
-      saveDocs(docs);
-      await saveDocToSupabase(currentId, `__geral_${file.name}`, info);
-      showToast('✅ Arquivo "' + file.name + '" enviado com sucesso!');
-      renderDetail(currentId);
-    } else {
-      alert('Faça login para enviar documentos.');
-    }
-  } catch(e) {
-    alert('Erro ao enviar: ' + (e.message || e));
+      const docsNow = loadDocs();
+      if (docsNow[currentId]?.[docKey]) {
+        docsNow[currentId][docKey].storagePath = path;
+        docsNow[currentId][docKey].publicUrl = data.publicUrl;
+        saveDocs(docsNow);
+        saveDocToSupabase(currentId, docKey, docsNow[currentId][docKey]).catch(() => {});
+      }
+    }).catch(e => console.warn('[upload detalhe]', e.message));
   }
 }
 
@@ -1952,27 +1954,31 @@ async function enviarDocItem(alvId, docNome, input) {
   const file = input.files[0];
   if (!file) return;
   if (file.size > 20 * 1024 * 1024) { alert('Arquivo muito grande. Máximo 20MB.'); return; }
+  if (!currentUser) { alert('Faça login para enviar documentos.'); return; }
 
-  try {
-    if (supabase && currentUser) {
-      const safe = docNome.replace(/[^a-zA-Z0-9_\-]/g, '_').substring(0, 60);
-      const path = `${currentUser.id}/${alvId}/${safe}.${file.name.split('.').pop()}`;
-      const { error } = await supabase.storage.from(STORAGE_BUCKET).upload(path, file, { upsert: true });
-      if (error) throw error;
+  const localUrl = URL.createObjectURL(file);
+  const info = { status: 'entregue', filename: file.name, storagePath: null, publicUrl: localUrl, attachedAt: new Date().toISOString() };
+  const docs = loadDocs();
+  if (!docs[alvId]) docs[alvId] = {};
+  docs[alvId][docNome] = info;
+  saveDocs(docs);
+  showToast('📎 ' + file.name + ' anexado!');
+  renderDetail(alvId);
+
+  if (supabase) {
+    const safe = docNome.replace(/[^a-zA-Z0-9_\-]/g, '_').substring(0, 60);
+    const path = `${currentUser.id}/${alvId}/${safe}.${file.name.split('.').pop()}`;
+    supabase.storage.from(STORAGE_BUCKET).upload(path, file, { upsert: true }).then(({ error }) => {
+      if (error) { console.warn('[upload item]', error.message); return; }
       const { data } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(path);
-      const info = { status: 'entregue', filename: file.name, storagePath: path, publicUrl: data.publicUrl, attachedAt: new Date().toISOString() };
-      const docs = loadDocs();
-      if (!docs[alvId]) docs[alvId] = {};
-      docs[alvId][docNome] = info;
-      saveDocs(docs);
-      await saveDocToSupabase(alvId, docNome, info);
-      showToast('✅ "' + file.name + '" enviado!');
-      renderDetail(alvId);
-    } else {
-      alert('Faça login para enviar documentos.');
-    }
-  } catch(e) {
-    alert('Erro ao enviar: ' + (e.message || e));
+      const docsNow = loadDocs();
+      if (docsNow[alvId]?.[docNome]) {
+        docsNow[alvId][docNome].storagePath = path;
+        docsNow[alvId][docNome].publicUrl = data.publicUrl;
+        saveDocs(docsNow);
+        saveDocToSupabase(alvId, docNome, docsNow[alvId][docNome]).catch(() => {});
+      }
+    }).catch(e => console.warn('[upload item]', e.message));
   }
 }
 
