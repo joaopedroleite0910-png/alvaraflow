@@ -1845,6 +1845,11 @@ async function loadAlvaras() {
         supabaseItems.forEach(a => ALVARAS.push(a));
         localOnly.forEach(a => ALVARAS.push(a));
         _salvarLocalStorage();
+        // Re-renderiza a view atual após dados do Supabase chegarem
+        const dv = document.getElementById('view-dashboard');
+        if (dv && dv.classList.contains('active')) renderDashboard();
+        const av = document.getElementById('view-alvaras');
+        if (av && av.classList.contains('active')) renderList();
       }
     } catch {}
   }
@@ -2344,7 +2349,8 @@ async function doLogout() {
         sessionHandled = true;
         await onAuthSuccess(session.user);
       }
-    } else {
+    } else if (_event === 'SIGNED_OUT' || _event === 'USER_DELETED') {
+      // Só limpa o estado em logout explícito — não em eventos transitórios de init
       sessionHandled = false;
       currentUser = null;
       ALVARAS.length = 0;
