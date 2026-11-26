@@ -1816,22 +1816,21 @@ async function loadAlvaras() {
 
 async function getNextProtocolo() {
   const ano = new Date().getFullYear();
-  if (supabase && currentUser) {
-    try {
-      const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 5000));
-      const req = supabase.rpc('next_protocolo', { p_ano: ano });
-      const { data, error } = await Promise.race([req, timeout]);
-      if (!error && data) return `ALV-${ano}-${String(data).padStart(4, '0')}`;
-      console.warn('[protocolo]', error?.message || 'sem dados');
-    } catch(e) {
-      console.warn('[protocolo]', e.message);
-    }
-  }
-  // Fallback offline: sequencial local
+  // Incrementa localmente de imediato (sem bloquear UI)
   const key = `alv_seq_${ano}`;
   const seq = (parseInt(localStorage.getItem(key) || '0') + 1);
   localStorage.setItem(key, seq);
-  return `ALV-${ano}-${String(seq).padStart(4, '0')}`;
+  const prot = `ALV-${ano}-${String(seq).padStart(4, '0')}`;
+  // Sincroniza com Supabase em segundo plano para manter contador global
+  if (supabase && currentUser) {
+    supabase.rpc('next_protocolo', { p_ano: ano }).then(({ data, error }) => {
+      if (!error && data && data > seq) {
+        // Supabase está à frente — atualiza local
+        localStorage.setItem(key, data);
+      }
+    }).catch(() => {});
+  }
+  return prot;
 }
 
 async function saveAlvara(alvara) {
