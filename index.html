@@ -2047,38 +2047,60 @@ async function enviarDocItem(alvId, docNome, input) {
    ================================================================ */
 let TODOS_ALVARAS = [];
 
+function _loadAllLocalAlvaras() {
+  // Lê alvarás de TODAS as contas salvas no localStorage deste navegador
+  const prefix = 'alvaraflow_alvaras_';
+  const seen = new Set();
+  const all  = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (!key || !key.startsWith(prefix) || key === prefix + 'guest') continue;
+    try {
+      const items = JSON.parse(localStorage.getItem(key) || '[]');
+      items.forEach(a => {
+        if (!seen.has(a.id)) { seen.add(a.id); all.push(a); }
+      });
+    } catch {}
+  }
+  // Ordena por data de criação decrescente
+  all.sort((a, b) => new Date(b.createdAt || b.data || 0) - new Date(a.createdAt || a.data || 0));
+  return all;
+}
+
 async function renderTodosAlvaras() {
   const loading = document.getElementById('todos-loading');
   const table   = document.getElementById('todos-table');
   const empty   = document.getElementById('todos-empty');
 
-  // Mostra dados locais do usuário atual imediatamente (sem esperar Supabase)
-  TODOS_ALVARAS = [...ALVARAS];
+  // Mostra TODOS os alvarás de todas as contas do localStorage imediatamente
+  TODOS_ALVARAS = _loadAllLocalAlvaras();
   loading.hidden = true;
   filterTodos();
 
   if (!supabase || !currentUser) return;
 
-  // Tenta buscar todas as contas do Supabase com timeout de 8s
+  // Tenta enriquecer com dados do Supabase (outras contas que não passaram por este navegador)
   loading.hidden = false;
   try {
-    const withTimeout = (promise, ms) =>
-      Promise.race([promise, new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), ms))]);
+    const withTimeout = (p, ms) =>
+      Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), ms))]);
 
     const { data, error } = await withTimeout(
       supabase.from('alvaras').select('*').order('created_at', { ascending: false }),
       8000
     );
 
-    if (!error && data) {
-      // Merge: dados do Supabase + itens locais que ainda não foram sincronizados
-      const supabaseIds = new Set(data.map(r => r.id));
-      const localOnly   = ALVARAS.filter(a => !supabaseIds.has(a.id));
-      TODOS_ALVARAS = [...data, ...localOnly];
+    if (!error && data && data.length > 0) {
+      const localIds = new Set(TODOS_ALVARAS.map(a => a.id));
+      const remoteOnly = data.filter(r => !localIds.has(r.id));
+      if (remoteOnly.length > 0) {
+        TODOS_ALVARAS = [...TODOS_ALVARAS, ...remoteOnly]
+          .sort((a, b) => new Date(b.createdAt || b.created_at || b.data || 0)
+                        - new Date(a.createdAt || a.created_at || a.data || 0));
+      }
     }
   } catch (e) {
     console.warn('[todos]', e.message);
-    // Mantém dados locais já exibidos
   }
 
   loading.hidden = true;
