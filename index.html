@@ -2167,10 +2167,12 @@ function closeLogout(e) {
 }
 
 async function doLogout() {
-  if (supabase) await supabase.auth.signOut();
-  currentUser = null;
   document.getElementById('modal-logout').hidden = true;
-  document.getElementById('modal-login').hidden  = false;
+  if (supabase) await supabase.auth.signOut().catch(() => {});
+  currentUser = null;
+  ALVARAS.length = 0;
+  renderDashboard();
+  document.getElementById('modal-login').hidden = false;
   showLoginForm();
   clearLoginMessages();
   document.getElementById('login-email').value = '';
