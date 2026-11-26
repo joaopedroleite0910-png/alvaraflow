@@ -1902,22 +1902,17 @@ async function novoNext() {
     };
     ALVARAS.unshift(novoAlvara);
 
-    btn.textContent = 'Salvando…';
-    await saveAlvara(novoAlvara);
-    btn.disabled = false;
-
+    // Fecha modal imediatamente — salva no Supabase em segundo plano
     document.getElementById('modal-novo').hidden = true;
     novoStep = 1;
+    btn.textContent = 'Avançar';
+    btn.disabled = false;
 
-    // Atualiza a view atual
-    const v = document.querySelector('[data-view]')?.dataset.view || 'dashboard';
-    if (v === 'alvaras' || v === 'dashboard') {
-      if (v === 'alvaras') renderAlvaras();
-      else renderDashboard();
-    }
     renderDashboard();
     if (document.getElementById('view-alvaras') && !document.getElementById('view-alvaras').hidden) renderList();
     showToast('✅ Alvará ' + prot + ' protocolado com sucesso!');
+
+    saveAlvara(novoAlvara).catch(() => {});
   }
 }
 
