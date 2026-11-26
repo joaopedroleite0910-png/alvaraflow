@@ -1757,7 +1757,7 @@ function closeModalAlvara(e) {
    ================================================================ */
 function openNovoAlvara() {
   novoStep = 1;
-  document.getElementById('novo-prot').value = 'PAE-2024-' + String(Math.floor(1200+Math.random()*200)).padStart(4,'0');
+  document.getElementById('novo-prot').value = 'Gerando…';
   updateNovoSteps();
   document.getElementById('modal-novo').hidden = false;
 }
@@ -1814,6 +1814,17 @@ async function loadAlvaras() {
   } catch {}
 }
 
+async function getNextProtocolo() {
+  const ano = new Date().getFullYear();
+  if (supabase && currentUser) {
+    const { data, error } = await supabase.rpc('next_protocolo', { p_ano: ano });
+    if (!error && data) return `ALV-${ano}-${String(data).padStart(4, '0')}`;
+    if (error) console.warn('[protocolo]', error.message);
+  }
+  // Fallback offline: usa timestamp reduzido
+  return `ALV-${ano}-${String(Date.now()).slice(-4)}`;
+}
+
 async function saveAlvara(alvara) {
   if (supabase && currentUser) {
     const { error } = await supabase.from('alvaras').upsert({
@@ -1849,7 +1860,6 @@ async function novoNext() {
     novoStep++; updateNovoSteps();
   } else {
     // Step 3 — salvar
-    const prot  = document.getElementById('novo-prot').value;
     const tipo  = document.getElementById('novo-tipo').value;
     const nome  = document.getElementById('novo-nome').value.trim();
     const cnpj  = document.getElementById('novo-cnpj').value.trim();
@@ -1862,6 +1872,14 @@ async function novoNext() {
     const bairro= document.getElementById('novo-bairro').value.trim();
     const cep   = document.getElementById('novo-cep').value.trim();
     const obs   = document.getElementById('novo-obs').value.trim();
+
+    const btn = document.getElementById('btn-novo-next');
+    btn.textContent = 'Gerando protocolo…';
+    btn.disabled = true;
+
+    // Gera protocolo sequencial via Supabase
+    const prot = await getNextProtocolo();
+    document.getElementById('novo-prot').value = prot;
 
     const id = 'ALV-' + Date.now();
     const endereco = [end, num, comp, bairro, cep].filter(Boolean).join(', ');
@@ -1876,9 +1894,7 @@ async function novoNext() {
     };
     ALVARAS.unshift(novoAlvara);
 
-    const btn = document.getElementById('btn-novo-next');
     btn.textContent = 'Salvando…';
-    btn.disabled = true;
     await saveAlvara(novoAlvara);
     btn.disabled = false;
 
