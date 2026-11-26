@@ -83,10 +83,12 @@ button{font-family:inherit;cursor:pointer}
 
 /* ── SIDEBAR ─────────────────────────────────────────────────── */
 .sidebar{
-  width:240px;flex-shrink:0;background:var(--sidebar-bg);
+  width:240px;flex-shrink:0;
+  background:linear-gradient(180deg,#0D1B2A 0%,#0A1520 100%);
   display:flex;flex-direction:column;height:100vh;
   position:fixed;left:0;top:0;bottom:0;z-index:100;
   overflow-y:auto;overflow-x:hidden;
+  border-right:1px solid rgba(255,255,255,.04);
 }
 .sb-logo{
   padding:18px 16px 14px;
@@ -148,6 +150,7 @@ button{font-family:inherit;cursor:pointer}
   padding:0 24px;height:54px;display:flex;align-items:center;gap:12px;
   flex-shrink:0;
   padding-right:max(24px,env(safe-area-inset-right,0px));
+  box-shadow:0 1px 0 var(--border);
 }
 .breadcrumb{display:flex;align-items:center;gap:5px;font-size:13px;color:var(--muted);flex:1}
 .breadcrumb b{color:var(--fg);font-weight:600}
@@ -433,6 +436,54 @@ svg text{font-family:'Inter',sans-serif}
 .rel-legend-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
 .rel-stacked-bar{height:7px;background:var(--border);border-radius:4px;overflow:hidden;display:flex;margin-top:4px}
 .rel-period-hd{display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:22px}
+
+/* ── MOTION ───────────────────────────────────────────────────── */
+/* View transitions — conteúdo não teleporta */
+@keyframes viewIn {
+  from { opacity:0; transform:translateY(7px) }
+  to   { opacity:1; transform:none }
+}
+.view.active { animation: viewIn 180ms cubic-bezier(0.16,1,0.3,1) both }
+
+/* Modal enter */
+@keyframes overlayIn { from { opacity:0 } }
+@keyframes modalIn   { from { opacity:0; transform:scale(.96) translateY(8px) } }
+.modal-ov:not([hidden]) { animation: overlayIn 220ms ease-out both }
+.modal-ov:not([hidden]) .modal { animation: modalIn 220ms cubic-bezier(0.16,1,0.3,1) both }
+
+/* Toast enter / exit */
+@keyframes toastIn  { from { opacity:0; transform:translateY(10px) scale(.96) } }
+@keyframes toastOut { to   { opacity:0; transform:translateY(10px) scale(.96) } }
+
+/* Button press feedback (feedback tier — tens/day → very subtle) */
+.btn:active:not(:disabled) { transform:scale(.97); transition:transform 90ms ease-out }
+
+/* Nav item press */
+.nav-item:active { transform:scale(.98) }
+
+/* Card hover lift — small depth cue */
+.card { transition: box-shadow 180ms ease, border-color 180ms ease }
+.card:hover { box-shadow: var(--shadow-md); border-color: var(--border-str) }
+
+/* KPI card subtle gradient accent */
+.kpi { background: var(--surface); transition: box-shadow 180ms ease }
+.kpi:hover { box-shadow: var(--shadow-md) }
+
+/* Table row left-accent on hover — modern dashboard pattern */
+tbody tr { position:relative; transition: background .12s, box-shadow .12s }
+tbody tr:hover { background:var(--surface-2); box-shadow: inset 3px 0 0 var(--brand) }
+
+/* Tipo card — improve hover */
+.tipo-card { transition: border-color .2s, box-shadow .2s, transform .2s }
+.tipo-card:hover { border-color:var(--brand-mid); box-shadow:var(--shadow-md); transform:translateY(-2px) }
+
+/* Smooth sidebar nav active indicator */
+.nav-item { transition: background .15s, color .15s, transform .1s }
+
+/* Reduced motion — keep transitions but remove transforms */
+@media (prefers-reduced-motion: reduce) {
+  *,*::before,*::after { animation-duration:.01ms!important; transition-duration:.01ms!important }
+}
 
 /* ── RESPONSIVE ───────────────────────────────────────────────── */
 @media(max-width:900px){
@@ -2565,18 +2616,29 @@ function renderRelatorios() {
       }).join('');
 }
 
-function showToast(msg) {
+function showToast(msg, type) {
   let t = document.getElementById('toast');
-  if (!t) {
-    t = document.createElement('div');
-    t.id = 'toast';
-    t.style.cssText = 'position:fixed;bottom:24px;right:24px;background:var(--s-ok-bg);color:var(--s-ok);border:1px solid var(--s-ok);padding:12px 20px;border-radius:10px;font-size:13px;font-weight:600;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,.12);transition:opacity .3s';
-    document.body.appendChild(t);
-  }
-  t.textContent = msg;
-  t.style.opacity = '1';
-  clearTimeout(t._timer);
-  t._timer = setTimeout(() => { t.style.opacity = '0'; }, 3000);
+  if (t) { clearTimeout(t._timer); t.remove(); }
+  t = document.createElement('div');
+  t.id = 'toast';
+  const isErr = type === 'error';
+  t.style.cssText = [
+    'position:fixed;bottom:24px;right:24px;z-index:9999',
+    'padding:11px 18px;border-radius:10px',
+    'font-size:13px;font-weight:600',
+    'box-shadow:0 4px 20px rgba(0,0,0,.14)',
+    'display:flex;align-items:center;gap:8px',
+    isErr
+      ? 'background:var(--s-rej-bg);color:var(--s-rej);border:1px solid #FECACA'
+      : 'background:var(--s-ok-bg);color:var(--s-ok);border:1px solid #6EE7B7',
+    'animation:toastIn 300ms cubic-bezier(0.16,1,0.3,1) both',
+  ].join(';');
+  t.innerHTML = `<span>${isErr ? '✕' : '✓'}</span><span>${msg}</span>`;
+  document.body.appendChild(t);
+  t._timer = setTimeout(() => {
+    t.style.animation = 'toastOut 220ms ease-in forwards';
+    setTimeout(() => t.remove(), 230);
+  }, 3000);
 }
 
 function novoBack() {
