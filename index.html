@@ -484,6 +484,10 @@ svg text{font-family:'Inter',sans-serif}
       <span>Documentos</span>
     </div>
     <div class="sb-sep">Gestão</div>
+    <div class="nav-item" onclick="nav('todos')" id="nav-todos">
+      <svg class="nav-ic" viewBox="0 0 20 20" fill="currentColor"><path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"/></svg>
+      <span>Todos os Alvarás</span>
+    </div>
     <div class="nav-item" onclick="nav('relatorios')">
       <svg class="nav-ic" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 3a1 1 0 000 2v8a2 2 0 002 2h2.586l-1.293 1.293a1 1 0 101.414 1.414L10 15.414l2.293 2.293a1 1 0 001.414-1.414L12.414 15H15a2 2 0 002-2V5a1 1 0 100-2H3zm11.707 4.707a1 1 0 00-1.414-1.414L10 9.586 8.707 8.293a1 1 0 00-1.414 0l-2 2a1 1 0 101.414 1.414L8 10.414l1.293 1.293a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
       <span>Relatórios</span>
@@ -782,6 +786,37 @@ svg text{font-family:'Inter',sans-serif}
          ══════════════════════════════════════════════════════════ -->
     <!-- ══════════════════════════════════════════════════════════
          VIEW: DOCUMENTOS
+         ══════════════════════════════════════════════════════════ -->
+    <!-- VIEW: TODOS OS ALVARÁS -->
+    <div id="view-todos" class="view">
+      <div class="page-hd">
+        <h1 class="page-title">Todos os Alvarás</h1>
+        <p class="page-sub">Visão geral de todos os processos cadastrados — Prefeitura Municipal de Uruçuca/BA</p>
+      </div>
+      <div class="card" style="margin-bottom:16px">
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+          <input type="text" id="todos-search" class="fi" style="flex:1;min-width:180px" placeholder="Buscar por protocolo, requerente…" oninput="filterTodos()">
+          <select id="todos-status" class="fi" style="width:160px" onchange="filterTodos()">
+            <option value="">Todos os status</option>
+            <option value="pendente">Pendente</option>
+            <option value="analise">Em análise</option>
+            <option value="aprovado">Aprovado</option>
+            <option value="indeferido">Indeferido</option>
+          </select>
+        </div>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden">
+        <div id="todos-loading" style="padding:32px;text-align:center;color:var(--subtle)">⏳ Carregando…</div>
+        <table class="tbl" id="todos-table" hidden>
+          <thead><tr>
+            <th>Protocolo</th><th>Requerente</th><th>Tipo</th><th>Status</th><th>Conta</th><th>Data</th>
+          </tr></thead>
+          <tbody id="todos-tbody"></tbody>
+        </table>
+        <div id="todos-empty" hidden style="padding:40px;text-align:center;color:var(--subtle)">Nenhum alvará encontrado.</div>
+      </div>
+    </div>
+
          ══════════════════════════════════════════════════════════ -->
     <div id="view-documentos" class="view">
       <div class="page-hd">
@@ -1104,6 +1139,7 @@ function nav(view, id) {
   if (view === 'tipos') renderTipos();
   if (view === 'dashboard') renderDashboard();
   if (view === 'documentos') renderDocumentosView();
+  if (view === 'todos') renderTodosAlvaras();
 }
 
 function updateBreadcrumb(view, id) {
@@ -1988,6 +2024,67 @@ async function enviarDocItem(alvId, docNome, input) {
       }
     }).catch(e => console.warn('[upload item]', e.message));
   }
+}
+
+/* ================================================================
+   TODOS OS ALVARÁS (visão geral de todas as contas)
+   ================================================================ */
+let TODOS_ALVARAS = [];
+
+async function renderTodosAlvaras() {
+  const loading = document.getElementById('todos-loading');
+  const table   = document.getElementById('todos-table');
+  const empty   = document.getElementById('todos-empty');
+  loading.hidden = false; table.hidden = true; empty.hidden = true;
+
+  if (supabase && currentUser) {
+    const { data, error } = await supabase
+      .from('alvaras').select('*').order('created_at', { ascending: false });
+    if (!error && data) {
+      TODOS_ALVARAS = data;
+    } else {
+      console.warn('[todos]', error?.message);
+      TODOS_ALVARAS = [];
+    }
+  } else {
+    TODOS_ALVARAS = [...ALVARAS];
+  }
+
+  loading.hidden = true;
+  filterTodos();
+}
+
+function filterTodos() {
+  const q      = (document.getElementById('todos-search')?.value || '').toLowerCase();
+  const status = document.getElementById('todos-status')?.value || '';
+  const table  = document.getElementById('todos-table');
+  const empty  = document.getElementById('todos-empty');
+  const tbody  = document.getElementById('todos-tbody');
+
+  const STATUS_LABEL = { pendente:'Pendente', analise:'Em análise', aprovado:'Aprovado', indeferido:'Indeferido' };
+  const STATUS_COLOR = { pendente:'var(--s-pend)', analise:'var(--s-rev)', aprovado:'var(--s-ok)', indeferido:'var(--s-ind)' };
+
+  const rows = TODOS_ALVARAS.filter(a => {
+    if (status && a.status !== status) return false;
+    if (q && !((a.protocolo||'').toLowerCase().includes(q) ||
+               (a.requerente||'').toLowerCase().includes(q) ||
+               (a.tipo||'').toLowerCase().includes(q))) return false;
+    return true;
+  });
+
+  if (rows.length === 0) {
+    table.hidden = true; empty.hidden = false; return;
+  }
+  empty.hidden = true; table.hidden = false;
+  tbody.innerHTML = rows.map(a => `
+    <tr style="cursor:pointer" onclick="nav('detail','${a.id}')">
+      <td class="td-mono">${a.protocolo || a.id}</td>
+      <td>${a.requerente || '—'}</td>
+      <td>${a.tipo || '—'}</td>
+      <td><span class="badge" style="background:${STATUS_COLOR[a.status]||'var(--subtle)'}20;color:${STATUS_COLOR[a.status]||'var(--subtle)'};">${STATUS_LABEL[a.status]||a.status}</span></td>
+      <td style="font-size:11px;color:var(--subtle)">${(a.user_id||'').slice(0,8)}…</td>
+      <td>${a.data || '—'}</td>
+    </tr>`).join('');
 }
 
 function showToast(msg) {
